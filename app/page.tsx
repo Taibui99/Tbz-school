@@ -59,11 +59,11 @@ export default function Home() {
           tài liệu học tập của bạn — đúng mức quyền riêng tư bạn muốn.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button size="lg" render={<a href="#caau-truc" />}>
-            Tìm hiểu cấu trúc
+          <Button size="lg" render={<a href="/dang-ky" />}>
+            Bắt đầu ngay
           </Button>
-          <Button size="lg" variant="outline" render={<a href="#tinh-nang" />}>
-            Xem tính năng
+          <Button size="lg" variant="outline" render={<a href="#caau-truc" />}>
+            Tìm hiểu cấu trúc
           </Button>
         </div>
       </section>

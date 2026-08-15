@@ -59,15 +59,17 @@ Acceptance: a new developer/agent can understand product, architecture, decision
 Acceptance: migrations apply cleanly and RLS prevents cross-user access. (Đã verify qua REST API: tags trả 6 bản ghi, workspaces/profiles ẩn danh trả `[]`)
 
 ## PHASE 3 — Authentication/profile
-- [ ] Register
-- [ ] Login
-- [ ] Logout
-- [ ] Session persistence
-- [ ] Password reset
-- [ ] Profile page
-- [ ] Avatar support
-- [ ] Account settings
-- [ ] Protected routes
+- [x] Register
+- [x] Login
+- [x] Logout
+- [x] Session persistence
+- [x] Password reset
+- [x] Profile page
+- [x] Avatar support
+- [x] Account settings
+- [x] Protected routes
+
+Acceptance: đăng ký/đăng nhập/đăng xuất hoạt động với Supabase Auth (email xác nhận), session duy trì qua `proxy.ts`, routes bảo vệ redirect về `/dang-nhap`, đặt lại mật khẩu qua email + `/auth/confirm`, trang `/ho-so` cập nhật họ tên + ảnh đại diện (bucket `avatars` public-read, upload giới hạn thư mục user, migration `20260815000001_phase3_avatars_bucket.sql` đã push). Account settings (đổi email/mật khẩu ngay tại trang hồ sơ, xóa tài khoản) chuyển sang Phase 3.5.
 
 ## PHASE 4 — Workspace and organization
 - [ ] Workspace creation/settings

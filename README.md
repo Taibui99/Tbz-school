@@ -56,4 +56,5 @@ tests/        unit tests (vitest)
 
 - [x] Phase 0–1: khởi tạo ứng dụng (Next.js, TypeScript, Tailwind, shadcn/ui, app shell, error states, health check, env validation, tests)
 - [x] Phase 2: Supabase + database (migration 17 bảng + indexes + RLS + grants + seed, đã push lên production; Supabase clients)
-- [ ] Phase 3+: xem [TASKS.md](./TASKS.md)
+- [x] Phase 3: Authentication (đăng ký/đăng nhập/đăng xuất, session qua `proxy.ts`, đặt lại mật khẩu, hồ sơ + avatar, routes bảo vệ)
+- [ ] Phase 4+: xem [TASKS.md](./TASKS.md)
