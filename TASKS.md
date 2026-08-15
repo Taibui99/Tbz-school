@@ -84,15 +84,17 @@ Acceptance: đăng ký/đăng nhập/đăng xuất hoạt động với Supabase
 Acceptance: tạo/sửa/xóa workspace, collection, lesson qua server actions + RLS; sắp xếp lên/xuống; di chuyển resource giữa các bài học cùng workspace; sidebar tree + breadcrumbs; empty states; `/kho` bảo vệ bởi proxy (redirect khi chưa đăng nhập, 404 thật cho workspace không tồn tại/không thuộc user). Fix bug RLS: infinite recursion giữa `resources` ↔ `resource_shares` (migration `20260815000002_fix_rls_recursion.sql`, dùng hàm `security definer is_resource_owner`). Data test trên production: workspace "Kho Toán 11" (tbztest@gmail.com) với 2 collection, 2 lesson, 1 resource.
 
 ## PHASE 5 — Resource core
-- [ ] Resource CRUD
-- [ ] Resource type/lifecycle model
-- [ ] File metadata
-- [ ] External resource model
-- [ ] Tags
-- [ ] Favorites
-- [ ] Recently opened model
-- [ ] Resource details
-- [ ] Download rules
+- [x] Resource CRUD
+- [x] Resource type/lifecycle model
+- [x] File metadata
+- [x] External resource model
+- [x] Tags
+- [x] Favorites
+- [x] Recently opened model
+- [x] Resource details
+- [x] Download rules
+
+Acceptance: tạo (metadata-only + external URL), sửa, xóa mềm/khôi phục resource trên lesson page; resource details page hiển thị type/lifecycle/file metadata/external URL/download rules; tags (12 thẻ, picker toggle), favorites (star trên row + details), recently opened (activity_logs action=open, section "Đã mở gần đây" trên workspace page), download rules module `lib/resource/download.ts` (external luôn chặn, file chỉ khi ready + có storage). Migration `20260815000003_phase5_resource_core.sql` (index activity_logs). Fix 2 bug Next/Supabase phát hiện khi verify: (1) form action dùng `asVoidAction` trong SERVER component gây lỗi flight "Functions cannot be passed to Client Components" → chuyển move/restore thành client components; (2) supabase-js v2 join to-one trả object (types nói array) → dùng `Array.isArray` guard. Tests: 54 (thêm resource-validate 19, resource-download 6).
 
 ## PHASE 6 — Storage abstraction
 - [ ] Define `StorageProvider`

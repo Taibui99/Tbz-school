@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { FolderTree } from "lucide-react";
+import { Clock3, FolderTree } from "lucide-react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { TypeIcon } from "@/components/resource/type-icon";
 import {
   CreateCollectionDialog,
   DeleteCollectionDialog,
@@ -51,6 +52,39 @@ export default async function WorkspaceDetailPage({
     0,
   );
 
+  const { data: recentOpens } = await supabase
+    .from("activity_logs")
+    .select("resource_id, created_at, metadata, resources(title, type, deleted_at)")
+    .eq("user_id", user.id)
+    .eq("action", "open")
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  const seen = new Set<string>();
+  const recentResources = (recentOpens ?? [])
+    .filter((entry) => {
+      const resource = Array.isArray(entry.resources)
+        ? entry.resources[0]
+        : entry.resources;
+      if (!resource || resource.deleted_at !== null) return false;
+      if (seen.has(entry.resource_id)) return false;
+      seen.add(entry.resource_id);
+      return true;
+    })
+    .map((entry) => ({
+      ...entry,
+      resource: Array.isArray(entry.resources)
+        ? entry.resources[0]!
+        : entry.resources,
+      meta: (entry.metadata ?? {}) as {
+        workspace_id?: string;
+        collection_id?: string;
+        lesson_id?: string;
+      },
+    }))
+    .filter((entry) => entry.meta.workspace_id === id)
+    .slice(0, 5);
+
   return (
     <div className="px-4 py-8">
       <Breadcrumbs
@@ -82,6 +116,34 @@ export default async function WorkspaceDetailPage({
           />
         </div>
       </div>
+
+      {recentResources.length > 0 && (
+        <section className="mt-8">
+          <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Clock3 aria-hidden="true" className="size-4" />
+            Đã mở gần đây
+          </h2>
+          <ul className="mt-3 flex flex-col gap-2">
+            {recentResources.map((entry) => (
+              <li key={entry.resource_id}>
+                <Link
+                  href={`/kho/${id}/${entry.meta.collection_id}/${entry.meta.lesson_id}/${entry.resource_id}`}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:border-primary/40"
+                >
+                  <TypeIcon type={entry.resource.type} className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate font-medium">{entry.resource.title}</span>
+                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                    {new Intl.DateTimeFormat("vi-VN", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }).format(new Date(entry.created_at))}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {!collections || collections.length === 0 ? (
         <div className="mt-10 flex flex-col items-center gap-4 rounded-xl border border-dashed border-border py-16 text-center">
