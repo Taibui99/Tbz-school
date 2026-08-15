@@ -1,0 +1,59 @@
+# TBZ School
+
+Nền tảng lưu trữ, tổ chức và tương tác tài liệu học tập dành cho học sinh.
+
+Mô hình tổ chức: **Workspace → Collection → Lesson → Resource**
+
+Tài liệu đặc tả nằm tại:
+
+- [PRD.md](./PRD.md) — sản phẩm
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — kiến trúc kỹ thuật
+- [DECISIONS.md](./DECISIONS.md) — quyết định kiến trúc (ADR)
+- [TASKS.md](./TASKS.md) — danh sách nhiệm vụ theo phase
+- [AGENTS.md](./AGENTS.md) — hướng dẫn cho coding agent
+
+## Công nghệ
+
+- Next.js (App Router) + TypeScript strict
+- Tailwind CSS + shadcn/ui (Base UI)
+- Supabase PostgreSQL + Auth
+- Cloudflare R2 (lưu file lớn)
+- Vercel (deploy)
+
+## Bắt đầu
+
+```bash
+npm install
+cp .env.example .env.local   # điền giá trị thật khi cần
+npm run dev                  # http://localhost:3000
+```
+
+## Scripts
+
+```bash
+npm run dev        # dev server
+npm run build      # production build
+npm run start      # chạy bản build
+npm run lint       # eslint
+npm run typecheck  # tsc --noEmit
+npm test           # vitest run
+```
+
+## Cấu trúc
+
+```
+app/          routes, layouts, error/loading/not-found states
+components/   UI components (components/ui = shadcn)
+features/     UI & workflow theo từng domain (auth, workspace, resources, ...)
+services/     business logic (resource, permission, storage, quota, ...)
+lib/          clients, validators, utils, env validation
+hooks/        React hooks dùng chung
+types/        type dùng chung
+tests/        unit tests (vitest)
+```
+
+## Trạng thái
+
+- [x] Phase 0–1: khởi tạo ứng dụng (Next.js, TypeScript, Tailwind, shadcn/ui, app shell, error states, health check, env validation, tests)
+- [x] Phase 2: Supabase + database (migration 17 bảng + indexes + RLS + grants + seed, đã push lên production; Supabase clients)
+- [ ] Phase 3+: xem [TASKS.md](./TASKS.md)

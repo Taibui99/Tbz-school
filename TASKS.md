@@ -12,51 +12,51 @@ Do not mark a task complete until its acceptance criteria pass.
 ---
 
 ## PHASE 0 — Product and repository preparation
-- [ ] Confirm basic branding
-- [ ] Add README
-- [ ] Add project docs
-- [ ] Define development/staging/production conventions
+- [ ] Confirm basic branding (tên "TBZ School" + giao diện tiếng Việt tạm dùng, chờ xác nhận)
+- [x] Add README
+- [x] Add project docs
+- [x] Define development/staging/production conventions (AGENTS.md, .env.example, env validation)
 
 Acceptance: a new developer/agent can understand product, architecture, decisions, and tasks without chat history.
 
 ## PHASE 1 — Application foundation
-- [ ] Initialize Next.js app
-- [ ] Configure TypeScript strict mode
-- [ ] Configure Tailwind
-- [ ] Configure shadcn/ui
-- [ ] Configure linting/formatting
-- [ ] Create app shell
-- [ ] Create error/not-found/loading states
-- [ ] Create health check
-- [ ] Create `app`, `components`, `features`, `services`, `lib`, `types`, `hooks`, `tests` structure
-- [ ] Add environment validation
-- [ ] Add basic tests
-- [ ] Run typecheck/lint/build
+- [x] Initialize Next.js app (Next.js 16.3.1, App Router, Turbopack)
+- [x] Configure TypeScript strict mode
+- [x] Configure Tailwind
+- [x] Configure shadcn/ui (Base UI, preset Nova)
+- [x] Configure linting/formatting (eslint-config-next)
+- [x] Create app shell (layout + header/footer + landing page)
+- [x] Create error/not-found/loading states
+- [x] Create health check (`/api/health`)
+- [x] Create `app`, `components`, `features`, `services`, `lib`, `types`, `hooks`, `tests` structure
+- [x] Add environment validation (`lib/env.ts` + `.env.example`)
+- [x] Add basic tests (vitest: env + cn, 9 tests pass)
+- [x] Run typecheck/lint/build (đều pass)
 
 ## PHASE 2 — Supabase and database
-- [ ] Configure Supabase clients
-- [ ] Create migrations
-- [ ] Create profiles
-- [ ] Create workspaces
-- [ ] Create collections
-- [ ] Create lessons
-- [ ] Create resources
-- [ ] Create resource_files
-- [ ] Create external_resources
-- [ ] Create permissions/shares
-- [ ] Create annotations
-- [ ] Create favorites
-- [ ] Create tags/resource_tags
-- [ ] Create activity_logs
-- [ ] Create notifications
-- [ ] Create reports
-- [ ] Create storage_usage
-- [ ] Create resource_versions
-- [ ] Add indexes
-- [ ] Add RLS
-- [ ] Add seed/dev data
+- [x] Configure Supabase clients (`lib/supabase/client.ts` + `lib/supabase/server.ts`, @supabase/ssr)
+- [x] Create migrations (`supabase/migrations/20260814000001_phase2_initial_schema.sql`, đã push lên production DB)
+- [x] Create profiles
+- [x] Create workspaces
+- [x] Create collections
+- [x] Create lessons
+- [x] Create resources
+- [x] Create resource_files
+- [x] Create external_resources
+- [x] Create permissions/shares (resource_shares)
+- [x] Create annotations
+- [x] Create favorites
+- [x] Create tags/resource_tags
+- [x] Create activity_logs
+- [x] Create notifications
+- [x] Create reports
+- [x] Create storage_usage
+- [x] Create resource_versions
+- [x] Add indexes
+- [x] Add RLS
+- [x] Add seed/dev data (6 tag mẫu)
 
-Acceptance: migrations apply cleanly and RLS prevents cross-user access.
+Acceptance: migrations apply cleanly and RLS prevents cross-user access. (Đã verify qua REST API: tags trả 6 bản ghi, workspaces/profiles ẩn danh trả `[]`)
 
 ## PHASE 3 — Authentication/profile
 - [ ] Register
