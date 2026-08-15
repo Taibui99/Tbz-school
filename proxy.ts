@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PATHS = ["/ho-so"];
+const PROTECTED_PATHS = ["/ho-so", "/kho"];
 const AUTH_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
 
 export async function proxy(request: NextRequest) {
@@ -51,6 +51,27 @@ export async function proxy(request: NextRequest) {
     url.pathname = "/";
     url.search = "";
     return NextResponse.redirect(url);
+  }
+
+  if (user && pathname.startsWith("/kho/")) {
+    const segments = pathname.split("/");
+    const workspaceId = segments[2];
+    if (
+      workspaceId &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        workspaceId,
+      )
+    ) {
+      return new NextResponse(null, { status: 404 });
+    }
+    const { data: workspace } = await supabase
+      .from("workspaces")
+      .select("id")
+      .eq("id", workspaceId)
+      .maybeSingle();
+    if (!workspace) {
+      return new NextResponse(null, { status: 404 });
+    }
   }
 
   return supabaseResponse;

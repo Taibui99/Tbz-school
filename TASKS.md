@@ -72,14 +72,16 @@ Acceptance: migrations apply cleanly and RLS prevents cross-user access. (Đã v
 Acceptance: đăng ký/đăng nhập/đăng xuất hoạt động với Supabase Auth (email xác nhận), session duy trì qua `proxy.ts`, routes bảo vệ redirect về `/dang-nhap`, đặt lại mật khẩu qua email + `/auth/confirm`, trang `/ho-so` cập nhật họ tên + ảnh đại diện (bucket `avatars` public-read, upload giới hạn thư mục user, migration `20260815000001_phase3_avatars_bucket.sql` đã push). Account settings (đổi email/mật khẩu ngay tại trang hồ sơ, xóa tài khoản) chuyển sang Phase 3.5.
 
 ## PHASE 4 — Workspace and organization
-- [ ] Workspace creation/settings
-- [ ] Collection CRUD
-- [ ] Lesson CRUD
-- [ ] Reorder collections/lessons
-- [ ] Move resources
-- [ ] Breadcrumbs
-- [ ] Sidebar navigation
-- [ ] Empty/loading states
+- [x] Workspace creation/settings
+- [x] Collection CRUD
+- [x] Lesson CRUD
+- [x] Reorder collections/lessons
+- [x] Move resources
+- [x] Breadcrumbs
+- [x] Sidebar navigation
+- [x] Empty/loading states
+
+Acceptance: tạo/sửa/xóa workspace, collection, lesson qua server actions + RLS; sắp xếp lên/xuống; di chuyển resource giữa các bài học cùng workspace; sidebar tree + breadcrumbs; empty states; `/kho` bảo vệ bởi proxy (redirect khi chưa đăng nhập, 404 thật cho workspace không tồn tại/không thuộc user). Fix bug RLS: infinite recursion giữa `resources` ↔ `resource_shares` (migration `20260815000002_fix_rls_recursion.sql`, dùng hàm `security definer is_resource_owner`). Data test trên production: workspace "Kho Toán 11" (tbztest@gmail.com) với 2 collection, 2 lesson, 1 resource.
 
 ## PHASE 5 — Resource core
 - [ ] Resource CRUD

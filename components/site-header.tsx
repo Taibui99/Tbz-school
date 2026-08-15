@@ -34,6 +34,12 @@ export async function SiteHeader() {
           {user ? (
             <>
               <Link
+                href="/kho"
+                className="rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Kho của tôi
+              </Link>
+              <Link
                 href="/ho-so"
                 className="rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
               >
