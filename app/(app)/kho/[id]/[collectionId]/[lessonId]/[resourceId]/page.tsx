@@ -19,6 +19,8 @@ import { ResourceViewer } from "@/components/viewer/resource-viewer";
 import { RecordOpen } from "@/components/resource/record-open";
 import { UploadFileButton } from "@/components/upload/upload-file-button";
 import { StaleUploadCleaner } from "@/components/upload/stale-upload-cleaner";
+import { SharePanel } from "@/components/resource/share-panel";
+import { getShareInfo } from "@/lib/resource/public";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -139,6 +141,8 @@ export default async function ResourceDetailPage({
     downloadVerdict.allowed && viewer.kind !== "url" && "url" in viewer
       ? viewer.url
       : null;
+
+  const shareInfo = await getShareInfo(supabase, resource.id);
 
   const downloadReasonLabel: Record<string, string> = {
     external: "Tài liệu ngoài không tải được qua TBZ School.",
@@ -305,6 +309,14 @@ export default async function ResourceDetailPage({
           />
         </div>
       </section>
+
+      <div className="mt-6">
+        <SharePanel
+          resourceId={resource.id}
+          linkToken={shareInfo.linkToken}
+          grants={shareInfo.grants}
+        />
+      </div>
 
       <dl className="mt-6 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
         <dt className="text-muted-foreground">Tạo lúc</dt>

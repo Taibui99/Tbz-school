@@ -206,26 +206,30 @@ Acceptance: annotations persist and never modify original file bytes.
 - [ ] Pagination
 
 ## PHASE 15 — Sharing and permissions
-- [ ] Private
-- [ ] Unlisted
-- [ ] Public
-- [ ] Shared users
-- [ ] Share link generation
-- [ ] Revoke share
-- [ ] Server-side permission checks
-- [ ] Public preview
-- [ ] Permission-aware downloads
-- [ ] Private metadata isolation
+- [x] Private
+- [x] Unlisted
+- [x] Public
+- [x] Shared users
+- [x] Share link generation
+- [x] Revoke share
+- [x] Server-side permission checks
+- [x] Public preview
+- [x] Permission-aware downloads
+- [x] Private metadata isolation
+
+Acceptance: migration `20260816000001_phase15_sharing.sql` — security-definer `get_public_resource_by_token` (liên kết unlisted chỉ trả tài liệu unlisted/ready/không xóa), unique index (resource_id, granted_to), grant anon SELECT trên resources/resource_files/external_resources/resource_tags. `lib/resource/share-actions.ts`: `ensureShareLinkAction` (tạo token + tự set visibility=unlisted), `revokeShareLinkAction`, `grantShareAction` (tra email → uid bằng admin client, upsert viewer/editor, set visibility=shared), `revokeGrantAction`, `savePublicResourceAction`. `SharePanel` trên detail page (copy link, thu hồi, thêm/thu hồi người được chia sẻ). Trang công khai: `/x/[token]` (unlisted, anon), `/thu-vien/[id]` (public), dùng chung `PublicResourceBody` — viewer + nút tải gated theo `evaluateDownload` + ghi chú chủ sở hữu (attribution qua admin, không lộ email). Private metadata isolation: anon chỉ thấy bản ghi public-ready; private/anonymous ko truy cập được (verified smoke: private resource trả trang 404 UI). Known: page-level `notFound()` trả HTTP 200 (UI 404 đúng) — hành vi có sẵn của Next 16 trong app, không phải regression; proxy-trả 404 vẫn đúng status.
 
 ## PHASE 16 — Public library
-- [ ] Explore page
-- [ ] Public cards
-- [ ] Public search
-- [ ] Filters by subject/type/tag
-- [ ] Public resource pages
-- [ ] Attribution
-- [ ] Favorite/save/reference
-- [ ] Report resource
+- [x] Explore page
+- [x] Public cards
+- [x] Public search
+- [x] Filters by subject/type/tag
+- [x] Public resource pages
+- [x] Attribution
+- [x] Favorite/save/reference
+- [x] Report resource
+
+Acceptance: `/kham-pha` (khám phá) — lọc theo từ khóa (title/description), type, tag; phân trang (12/trang, count exact); card có TypeIcon, chủ sở hữu, ngày tạo, tags → `/thu-vien/[id]`. `/thu-vien/[id]` — preview viewer + download + yêu thích (đã đăng nhập) + "Lưu vào kho của tôi" (`savePublicResourceAction`: copy reference không nhân bản bytes, xem ADR-021) + báo cáo (`reportResourceAction`, `ReportForm`). NAV_LINKS thêm "Khám phá". Subject filter n/a (chưa có taxonomy môn học).
 
 ## PHASE 17 — Dashboard/history
 - [ ] Favorites

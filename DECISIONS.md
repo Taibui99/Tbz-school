@@ -167,10 +167,30 @@ Storage/privacy/schema changes can be difficult to reverse once production data 
 
 ## Pending decisions
 
-- Office rendering/conversion implementation.
 - Malware scanning provider/strategy.
 - Production backup provider.
 - Whether editor sharing is included in first public release.
+
+## ADR-021 — Save-to-library references, not byte copies
+Status: Accepted
+
+Decision:
+"Lưu vào kho của tôi" on a public resource copies the resource row (same provider/storage_key) into the user's workspace as a reference; bytes are NOT duplicated.
+
+Reason:
+Avoids paying storage twice for the same object and matches the future dedup/reference model (Phase 19). Storage stays private; signed URLs are issued server-side via the storage provider (admin), so references work for any owner.
+
+Limitation:
+If the original owner later deletes the physical object, references to it break (viewer falls back to unsupported). Safe physical-object lifecycle (reference counting) is deferred to Phase 19.
+
+## ADR-022 — Public attribution without email exposure
+Status: Accepted
+
+Decision:
+Public pages show the owner's `full_name` only; owner email is never selected or rendered publicly. Profile lookups for attribution/grants use the server-side admin client.
+
+Reason:
+`profiles` RLS only exposes a user's own row (`profiles_select_own`). Rendering emails publicly would be a privacy leak; the admin lookup keeps attribution possible without weakening RLS.
 
 ## ADR-019 — Office viewer strategy
 Status: Accepted
