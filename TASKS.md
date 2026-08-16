@@ -197,13 +197,15 @@ Acceptance (quyết định thực tế): file office là private signed URL nê
 Acceptance: annotations persist and never modify original file bytes.
 
 ## PHASE 14 — Search
-- [ ] PostgreSQL search indexes
-- [ ] Search collections/lessons/resources
-- [ ] Search tags
+- [x] PostgreSQL search indexes
+- [x] Search collections/lessons/resources
+- [x] Search tags
 - [ ] Search annotations/notes where practical
-- [ ] Filters
-- [ ] Sorting
-- [ ] Pagination
+- [x] Filters
+- [x] Sorting
+- [x] Pagination
+
+Acceptance: migration `20260816000002_phase14_search.sql` (pg_trgm + GIN index trên title/description resources + name collections/lessons + index owner/visibility/created). `/tim-kiem` (trong NAV_LINKS, anon tìm được tài liệu public qua RLS): lọc type/tag/scope (Toàn bộ/Của tôi/Công khai), sort (mới nhất/cập nhật/tên), phân trang (10/trang); tìm collections/lessons của user + thẻ phù hợp hiện chip filter. Annotation search để dành khi có Phase 13.
 
 ## PHASE 15 — Sharing and permissions
 - [x] Private
