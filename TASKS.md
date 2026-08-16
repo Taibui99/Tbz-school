@@ -232,13 +232,15 @@ Acceptance: migration `20260816000001_phase15_sharing.sql` — security-definer 
 Acceptance: `/kham-pha` (khám phá) — lọc theo từ khóa (title/description), type, tag; phân trang (12/trang, count exact); card có TypeIcon, chủ sở hữu, ngày tạo, tags → `/thu-vien/[id]`. `/thu-vien/[id]` — preview viewer + download + yêu thích (đã đăng nhập) + "Lưu vào kho của tôi" (`savePublicResourceAction`: copy reference không nhân bản bytes, xem ADR-021) + báo cáo (`reportResourceAction`, `ReportForm`). NAV_LINKS thêm "Khám phá". Subject filter n/a (chưa có taxonomy môn học).
 
 ## PHASE 17 — Dashboard/history
-- [ ] Favorites
-- [ ] Recently opened
-- [ ] Continue reading
-- [ ] Continue watching
-- [ ] Last position
-- [ ] Dashboard widgets
-- [ ] Basic activity timeline
+- [x] Favorites
+- [x] Recently opened
+- [x] Continue reading
+- [x] Continue watching
+- [x] Last position
+- [x] Dashboard widgets
+- [x] Basic activity timeline
+
+Acceptance: `/tong-quan` (page-level guard đăng nhập, header có link "Tổng quan" khi đã đăng nhập) — 4 widget thống kê (tài liệu, yêu thích, đã mở, workspace), "Tiếp tục xem" (`ContinueViewing` đọc localStorage `tbz:pdf:*`/`tbz:video:*` với ngưỡng trang≥2/giây≥10, resolve context qua `getContinueContextAction` + RLS, link về `/kho/...`), "Yêu thích gần đây" (link `/kho` nếu chủ sở hữu, `/thu-vien` nếu không), "Đã mở gần đây" (activity_logs action=open, dedupe), "Hoạt động gần đây" (timeline, nhãn hành động tiếng Việt). Limitation: last position lưu localStorage (cùng thiết bị) — resume chéo thiết bị cần state server-side (để dành); hiện mới ghi log action=open. Anon vào `/tong-quan` chỉ thấy trang đăng nhập, không lộ dữ liệu (verify smoke).
 
 ## PHASE 18 — Trash/versioning
 - [ ] Soft delete
