@@ -97,15 +97,17 @@ Acceptance: tạo/sửa/xóa workspace, collection, lesson qua server actions + 
 Acceptance: tạo (metadata-only + external URL), sửa, xóa mềm/khôi phục resource trên lesson page; resource details page hiển thị type/lifecycle/file metadata/external URL/download rules; tags (12 thẻ, picker toggle), favorites (star trên row + details), recently opened (activity_logs action=open, section "Đã mở gần đây" trên workspace page), download rules module `lib/resource/download.ts` (external luôn chặn, file chỉ khi ready + có storage). Migration `20260815000003_phase5_resource_core.sql` (index activity_logs). Fix 2 bug Next/Supabase phát hiện khi verify: (1) form action dùng `asVoidAction` trong SERVER component gây lỗi flight "Functions cannot be passed to Client Components" → chuyển move/restore thành client components; (2) supabase-js v2 join to-one trả object (types nói array) → dùng `Array.isArray` guard. Tests: 54 (thêm resource-validate 19, resource-download 6).
 
 ## PHASE 6 — Storage abstraction
-- [ ] Define `StorageProvider`
-- [ ] Implement R2 provider
-- [ ] Implement Supabase Storage provider
-- [ ] Implement external reference provider
-- [ ] Add provider selection
-- [ ] Signed read URLs
-- [ ] Object metadata
-- [ ] Delete/exists operations
-- [ ] Error mapping
+- [x] Define `StorageProvider`
+- [x] Implement R2 provider
+- [x] Implement Supabase Storage provider
+- [x] Implement external reference provider
+- [x] Add provider selection
+- [x] Signed read URLs
+- [x] Object metadata
+- [x] Delete/exists operations
+- [x] Error mapping
+
+Acceptance: `lib/storage/*` — interface `StorageProvider` (uploadObject, getSignedReadUrl, getSignedUploadUrl, getObjectMetadata, objectExists, deleteObject); `R2StorageProvider` (AWS SDK, presigned GET/PUT, Head/Delete, chỉ khởi tạo khi đủ R2_ACCOUNT_ID/ACCESS_KEY_ID/SECRET/BUCKET — chưa cấu hình → StorageError provider-error); `SupabaseStorageProvider` (bucket `files` private, service role qua `lib/supabase/admin.ts`, createSignedUrl/createSignedUploadUrl/info/remove); `ExternalStorageProvider` (URL trực tiếp, không upload/delete). Factory `getStorageProvider` + `createExternalStorageProvider(url)`. Error mapping: R2 (S3 error codes + HTTP status) và Supabase Storage (statusCode number/string, code NoSuchKey, message heuristic) → StorageError codes (not-found/forbidden/invalid-key/already-exists/quota-exceeded/provider-error). R2_* tách thành env OPTIONAL (bắt buộc chỉ khi dùng R2). Migration `20260815000004_phase6_storage.sql` (bucket `files` private + `avatars`). Verified: unit 84 tests (storage 21+) + live smoke trên Supabase Storage thật (upload→signed→read→metadata→exists→delete, missing→not-found). Đã gỡ lock treo `storage.buckets` (idle-in-transaction giữ RowExclusiveLock từ lần `db push` bị connection error — terminate backend để giải phóng).
 
 ## PHASE 7 — Upload engine
 - [ ] Upload session endpoint/action

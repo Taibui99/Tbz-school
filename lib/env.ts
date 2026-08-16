@@ -3,6 +3,9 @@ export const APP_ENV_VARS = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
+] as const;
+
+export const OPTIONAL_ENV_VARS = [
   "R2_ACCOUNT_ID",
   "R2_ACCESS_KEY_ID",
   "R2_SECRET_ACCESS_KEY",
@@ -10,6 +13,12 @@ export const APP_ENV_VARS = [
 ] as const;
 
 export type AppEnvVar = (typeof APP_ENV_VARS)[number];
+
+export function getR2EnvVars(
+  env: Record<string, string | undefined> = process.env,
+): (typeof OPTIONAL_ENV_VARS)[number][] {
+  return OPTIONAL_ENV_VARS.filter((name) => !env[name]);
+}
 
 export function getMissingEnvVars(
   env: Record<string, string | undefined> = process.env,
