@@ -148,7 +148,7 @@ export default async function ResourceDetailPage({
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
-          <TypeIcon type={resource.type} className="size-8 shrink-0 text-muted-foreground" />
+          <TypeIcon type={resource.type} className="size-8 shrink-0" />
           <div className="min-w-0">
             <h1 className="truncate text-2xl font-semibold tracking-tight">
               {resource.title}

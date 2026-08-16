@@ -130,7 +130,7 @@ export default async function WorkspaceDetailPage({
                   href={`/kho/${id}/${entry.meta.collection_id}/${entry.meta.lesson_id}/${entry.resource_id}`}
                   className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:border-primary/40"
                 >
-                  <TypeIcon type={entry.resource.type} className="size-4 shrink-0 text-muted-foreground" />
+                  <TypeIcon type={entry.resource.type} className="size-4 shrink-0" />
                   <span className="truncate font-medium">{entry.resource.title}</span>
                   <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                     {new Intl.DateTimeFormat("vi-VN", {

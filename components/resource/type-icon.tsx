@@ -25,6 +25,23 @@ const ICONS: Record<string, typeof FileText> = {
   url: Link2,
 };
 
+const TYPE_COLORS: Record<string, string> = {
+  pdf: "text-red-600",
+  doc: "text-sky-600",
+  docx: "text-sky-600",
+  ppt: "text-orange-600",
+  pptx: "text-orange-600",
+  xls: "text-emerald-600",
+  xlsx: "text-emerald-600",
+  image: "text-violet-600",
+  video: "text-fuchsia-600",
+  audio: "text-amber-600",
+  text: "text-slate-600",
+  url: "text-cyan-600",
+};
+
+const DEFAULT_COLOR = "text-slate-500";
+
 export function TypeIcon({
   type,
   className,
@@ -33,5 +50,6 @@ export function TypeIcon({
   className?: string;
 }) {
   const Icon = ICONS[type] ?? File;
-  return <Icon className={className} aria-hidden="true" />;
+  const color = TYPE_COLORS[type] ?? DEFAULT_COLOR;
+  return <Icon className={`${color} ${className ?? ""}`} aria-hidden="true" />;
 }

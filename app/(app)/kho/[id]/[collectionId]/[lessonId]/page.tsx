@@ -116,7 +116,7 @@ export default async function LessonDetailPage({
     return (
       <li className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
         <div className="flex min-w-0 items-center gap-3">
-          <TypeIcon type={resource.type} className="size-5 shrink-0 text-muted-foreground" />
+          <TypeIcon type={resource.type} className="size-5 shrink-0" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Link
@@ -212,7 +212,7 @@ export default async function LessonDetailPage({
 
       {activeResources.length === 0 ? (
         <div className="mt-10 flex flex-col items-center gap-4 rounded-xl border border-dashed border-border py-16 text-center">
-          <TypeIcon type="pdf" className="size-10 text-muted-foreground" />
+          <TypeIcon type="pdf" className="size-10" />
           <div>
             <p className="font-medium">Chưa có tài liệu</p>
             <p className="mt-1 text-sm text-muted-foreground">
