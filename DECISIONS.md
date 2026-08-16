@@ -171,3 +171,21 @@ Storage/privacy/schema changes can be difficult to reverse once production data 
 - Malware scanning provider/strategy.
 - Production backup provider.
 - Whether editor sharing is included in first public release.
+
+## ADR-019 — Office viewer strategy
+Status: Accepted
+
+Decision:
+Office files (DOCX/PPTX/XLSX) render as an honest fallback panel with a download button, not via third-party web viewers.
+
+Reason:
+Google/Microsoft Docs viewers require a public URL, but resources are private files behind short-lived signed URLs. Exposing them would break the privacy rule (ADR "private files must not be made public just to make a viewer easier"). A server-side conversion/OCR pipeline is deferred; revisit when storage/sharing model allows it.
+
+## ADR-020 — PDF.js worker bundling (Turbopack)
+Status: Accepted
+
+Decision:
+The pdf.js worker is loaded via `new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url)` instead of a `?url` static import.
+
+Reason:
+Turbopack's `?url` asset import on the ESM worker bundle failed the build ("Export default doesn't exist in target module"). `new URL(..., import.meta.url)` compiles cleanly and keeps the worker self-hosted (no external CDN dependency). pdf.js v6 API differences handled: `render({ canvas })`, no `isEvalSupported`, no `PDFDocumentProxy.destroy`.

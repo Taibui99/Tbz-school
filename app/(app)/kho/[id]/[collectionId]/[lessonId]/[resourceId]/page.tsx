@@ -14,9 +14,12 @@ import {
   VISIBILITY_LABELS,
 } from "@/components/resource/resource-dialogs";
 import { evaluateDownload } from "@/lib/resource/download";
+import { resolveViewer } from "@/lib/resource/view";
+import { ResourceViewer } from "@/components/viewer/resource-viewer";
 import { RecordOpen } from "@/components/resource/record-open";
 import { UploadFileButton } from "@/components/upload/upload-file-button";
 import { StaleUploadCleaner } from "@/components/upload/stale-upload-cleaner";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Chi tiết tài liệu",
@@ -123,6 +126,20 @@ export default async function ResourceDetailPage({
     (item) => item.tag_id,
   );
 
+  const viewer = await resolveViewer({
+    type: resource.type,
+    mime: resource.mime,
+    lifecycle_state: resource.lifecycle_state,
+    provider: resource.provider,
+    storage_key: resource.storage_key,
+    external_url: resource.external_url,
+    deleted_at: resource.deleted_at,
+  });
+  const downloadUrl =
+    downloadVerdict.allowed && viewer.kind !== "url" && "url" in viewer
+      ? viewer.url
+      : null;
+
   const downloadReasonLabel: Record<string, string> = {
     external: "Tài liệu ngoài không tải được qua TBZ School.",
     "not-ready": "Tài liệu chưa sẵn sàng để tải.",
@@ -185,6 +202,15 @@ export default async function ResourceDetailPage({
         </p>
       )}
 
+      <section className="mt-6">
+        <h2 className="mb-2 text-sm font-medium">Xem tài liệu</h2>
+        <ResourceViewer
+          viewer={viewer}
+          resourceId={resource.id}
+          downloadUrl={downloadUrl}
+        />
+      </section>
+
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-4">
           <h2 className="flex items-center gap-2 text-sm font-medium">
@@ -231,6 +257,14 @@ export default async function ResourceDetailPage({
               ? "Tài liệu sẵn sàng để tải về."
               : downloadReasonLabel[downloadVerdict.reason]}
           </p>
+          {downloadUrl && (
+            <div className="mt-3">
+              <Button render={<a href={downloadUrl} download />}>
+                <Download aria-hidden="true" />
+                Tải về
+              </Button>
+            </div>
+          )}
           {resource.lifecycle_state !== "ready" &&
             !resource.external_url &&
             resource.type !== "url" && (

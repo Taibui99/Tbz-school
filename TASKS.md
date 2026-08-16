@@ -126,48 +126,58 @@ Acceptance: flow tải tệp trực tiếp từ trình duyệt (ADR-009) trên r
 Acceptance (phase 7.2 — UX/UI): supported files upload without unnecessarily passing large bytes through the application server. `UploadFileButton` (client) với trạng thái idle → creating → uploading (thanh tiến trình % qua XHR `upload.onprogress`) → verifying (SHA-256 + finalize) → done | error; nút "Hủy tải lên" (abort XHR + `cancelUploadAction`), "Thử lại" (giữ file, chạy lại flow) và "Bỏ qua" khi lỗi; hint "Tối đa 50 MB mỗi tệp". Abandoned cleanup: `cleanupStaleUploadAction` + `StaleUploadCleaner` (client) — resource ở `uploading` quá 20 phút (`isUploadSessionStale`, `lib/upload/validate.ts`) tự reset về `draft` + xóa object best-effort khi mở detail page. Tests: +4 staleness (102 unit). Live verify: SSR idle state hiển thị nút + hint + "Chờ tải lên".
 
 ## PHASE 8 — File management
-- [ ] Rename
-- [ ] Delete
-- [ ] Move
-- [ ] Copy/reference
-- [ ] Bulk select/delete/move
-- [ ] Sort/filter
-- [ ] Resource details
+- [x] Rename
+- [x] Delete
+- [x] Move
+- [x] Copy/reference
+- [x] Bulk select/delete/move
+- [x] Sort/filter
+- [x] Resource details
+
+Acceptance: `ResourceList` (client) trên lesson page — tìm theo tên/loại/tag, lọc theo type + visibility, sắp xếp (created/updated/title/type) + đảo chiều, chọn hàng loạt → xóa/di chuyển (server actions `bulkDeleteResourceAction`/`bulkMoveResourceAction` soft-delete/verify ownership + cùng workspace), di chuyển/sao chép từng tài liệu (`copyResourceAction` — url/external giữ ready, file → draft, redirect sang bản copy), edit dialog (đổi tên/loại/tags, Phase 5), section "Đã xóa" + khôi phục. Server actions đều xác thực owner qua `lib/resource/access.ts`, revalidate path.
 
 ## PHASE 9 — Viewer framework
-- [ ] Generic ResourceViewer
-- [ ] Type dispatcher
-- [ ] Viewer loading/error states
-- [ ] Permission gate
-- [ ] Download fallback
-- [ ] Fullscreen where appropriate
+- [x] Generic ResourceViewer
+- [x] Type dispatcher
+- [x] Viewer loading/error states
+- [x] Permission gate
+- [x] Download fallback
+- [x] Fullscreen where appropriate
+
+Acceptance: `lib/resource/view.ts` — `viewerKindFor(resource)` (pdf/video/image/audio/text/url/office/unsupported theo type + storage) và `resolveViewer(resource)` trả signed URL (3600s) qua `getStorageProvider().getSignedReadUrl`; `components/viewer/resource-viewer.tsx` là client dispatcher lazy-load từng viewer (`PdfViewer`, `VideoViewer`, `TextViewer`) chỉ khi cần, url → ExternalLink, office/unsupported → fallback "chưa xem được trực tiếp" + nút tải. Permission gate ở server (detail page chỉ resolve khi user có quyền — RLS + `getResourceDetails`); download button chỉ hiện khi `evaluateDownload.allowed`.
 
 ## PHASE 10 — PDF viewer
-- [ ] Render
-- [ ] Pagination
-- [ ] Zoom/fit
-- [ ] Search
-- [ ] Fullscreen
-- [ ] Last-page persistence
-- [ ] Permission-aware download
+- [x] Render
+- [x] Pagination
+- [x] Zoom/fit
+- [x] Search
+- [x] Fullscreen
+- [x] Last-page persistence
+- [x] Permission-aware download
+
+Acceptance: `components/viewer/pdf-viewer.tsx` — pdf.js v6 (`new URL(...pdf.worker.min.mjs, import.meta.url)` để Turbopack bundle worker; API mới: `render({canvas})`, không có `isEvalSupported`/`doc.destroy`), danh sách trang ảo hóa (absolute positioning + ResizeObserver + rAF scroll, chỉ render trang trong viewport ±1, cache canvas + hủy render đang dở khi zoom), zoom 0.5–4 + vừa bề rộng, điều hướng/nhập số trang, tìm kiếm (`getTextContent` lazy) với prev/next match highlight, fullscreen API, ghi nhớ trang cuối (`tbz:pdf:{resourceId}`), nút tải gated theo quyền. Worker là blob/URL asset do Turbopack copy — không dùng CDN bên ngoài.
 
 ## PHASE 11 — Video viewer
-- [ ] Playback controls
-- [ ] Seek/volume/speed/fullscreen
-- [ ] Keyboard controls
-- [ ] Resume timestamp
+- [x] Playback controls
+- [x] Seek/volume/speed/fullscreen
+- [x] Keyboard controls
+- [x] Resume timestamp
 - [ ] Timestamp bookmarks
 - [ ] Timestamp notes
 - [ ] Caption support where available
 
+Acceptance: `components/viewer/video-viewer.tsx` — `<video controls>` native (seek/volume/fullscreen/keyboard có sẵn), tốc độ phát 0.5/1/1.25/1.5/2×, resume từ vị trí đã lưu `tbz:video:{resourceId}` (lưu khi >5s và < duration-30s), nút tải gated theo quyền. Bookmark/notes/caption để dành cùng Phase 13/26.
+
 ## PHASE 12 — Office viewers
-- [ ] DOC/DOCX preview strategy
-- [ ] PPT/PPTX preview strategy
-- [ ] XLS/XLSX preview strategy
-- [ ] Processing status
-- [ ] Download fallback
+- [x] DOC/DOCX preview strategy
+- [x] PPT/PPTX preview strategy
+- [x] XLS/XLSX preview strategy
+- [x] Processing status
+- [x] Download fallback
 - [ ] Presentation mode
 - [ ] Slide navigation
+
+Acceptance (quyết định thực tế): file office là private signed URL nên KHÔNG dùng Google/Microsoft Docs viewer (sẽ phải phơi file công khai — vi phạm rule privacy, xem DECISIONS). Strategy: kind `office` → honest fallback panel trong `resource-viewer.tsx` (giải thích + nút tải về) cho đến khi có pipeline server chuyển đổi/OCR. Processing status n/a (không có server processing). Presentation mode/slide navigation để dành.
 
 ## PHASE 13 — Annotation engine
 - [ ] Annotation schema

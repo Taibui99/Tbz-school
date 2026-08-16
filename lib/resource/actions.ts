@@ -288,4 +288,166 @@ export async function recordOpenAction(resourceId: string) {
   });
 }
 
+// ---------- Copy / bulk ----------
+
+function lessonContextOf(row: { lessons: unknown }) {
+  const lessons = row.lessons as
+    | { collection_id?: string | null }[]
+    | { collection_id?: string | null }
+    | null;
+  return Array.isArray(lessons)
+    ? lessons[0]?.collection_id
+    : lessons?.collection_id;
+}
+
+export async function copyResourceAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+
+  const supabase = await createClient();
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
+
+  const { data: src } = await supabase
+    .from("resources")
+    .select(
+      "id, title, description, type, visibility, lifecycle_state, provider, external_url, workspace_id, lesson_id, lessons!inner(collection_id)",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (!src) return { error: "Tài liệu không tồn tại." };
+
+  const collectionId = lessonContextOf(src);
+  if (!src.workspace_id || !src.lesson_id || !collectionId) {
+    return { error: "Thiếu ngữ cảnh tài liệu." };
+  }
+
+  const isExternal = src.type === "url" || src.provider === "external";
+  const { data: copy, error } = await supabase
+    .from("resources")
+    .insert({
+      owner_id: userId,
+      workspace_id: src.workspace_id,
+      lesson_id: src.lesson_id,
+      title: `${src.title} (bản sao)`,
+      description: src.description,
+      type: src.type,
+      visibility: src.visibility,
+      lifecycle_state: isExternal ? "ready" : "draft",
+      provider: isExternal ? "external" : null,
+      external_url: isExternal ? src.external_url : null,
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+
+  if (isExternal && src.external_url) {
+    await supabase
+      .from("external_resources")
+      .insert({ resource_id: copy.id, url: src.external_url });
+  }
+
+  revalidateLesson(src.workspace_id, collectionId, src.lesson_id);
+  redirect(
+    `/kho/${src.workspace_id}/${collectionId}/${src.lesson_id}/${copy.id}`,
+  );
+}
+
+export async function bulkDeleteResourceAction(formData: FormData) {
+  const ids = formData.getAll("id").map((v) => String(v)).filter(Boolean);
+  if (ids.length === 0) return { error: "Chưa chọn tài liệu nào." };
+
+  const supabase = await createClient();
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
+
+  const { data: owned } = await supabase
+    .from("resources")
+    .select("id")
+    .eq("owner_id", userId)
+    .in("id", ids);
+  if ((owned?.length ?? 0) !== ids.length) {
+    return { error: "Không có quyền xóa một số tài liệu." };
+  }
+
+  const { error } = await supabase
+    .from("resources")
+    .update({ deleted_at: new Date().toISOString() })
+    .in("id", ids);
+  if (error) return { error: error.message };
+
+  const { data: ctx } = await supabase
+    .from("resources")
+    .select("workspace_id, lesson_id, lessons!inner(collection_id)")
+    .eq("id", ids[0])
+    .maybeSingle();
+  if (ctx) {
+    const collectionId = lessonContextOf(ctx);
+    if (ctx.workspace_id && ctx.lesson_id && collectionId) {
+      revalidatePath(
+        `/kho/${ctx.workspace_id}/${collectionId}/${ctx.lesson_id}`,
+      );
+    }
+  }
+
+  return { success: `Đã xóa ${ids.length} tài liệu (vào thùng rác).` };
+}
+
+export async function bulkMoveResourceAction(formData: FormData) {
+  const ids = formData.getAll("id").map((v) => String(v)).filter(Boolean);
+  const targetLessonId = String(formData.get("targetLessonId") ?? "");
+  if (ids.length === 0) return { error: "Chưa chọn tài liệu nào." };
+
+  const supabase = await createClient();
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
+
+  const { data: owned } = await supabase
+    .from("resources")
+    .select("id, workspace_id, lesson_id, lessons!inner(collection_id)")
+    .eq("owner_id", userId)
+    .in("id", ids);
+  if (!owned || owned.length === 0) {
+    return { error: "Không có tài liệu nào được chọn." };
+  }
+  if (owned.length !== ids.length) {
+    return { error: "Không có quyền di chuyển một số tài liệu." };
+  }
+
+  const workspaceId = owned[0]?.workspace_id;
+  if (!workspaceId) return { error: "Thiếu ngữ cảnh workspace." };
+  const inSameWorkspace = owned.every(
+    (row) => row.workspace_id === workspaceId,
+  );
+  if (!inSameWorkspace) {
+    return { error: "Các tài liệu phải thuộc cùng một workspace." };
+  }
+
+  const target = await getLessonContext(supabase, targetLessonId, workspaceId);
+  if (!target) {
+    return { error: "Bài học đích không thuộc workspace này." };
+  }
+
+  const { error } = await supabase
+    .from("resources")
+    .update({ lesson_id: targetLessonId })
+    .in("id", ids);
+  if (error) return { error: error.message };
+
+  const sourceIds = new Set(owned.map((row) => row.lesson_id));
+  for (const sourceLessonId of sourceIds) {
+    if (sourceLessonId === targetLessonId) continue;
+    const source = owned.find((row) => row.lesson_id === sourceLessonId);
+    if (!source) continue;
+    const collectionId = lessonContextOf(source);
+    if (collectionId) {
+      revalidatePath(
+        `/kho/${workspaceId}/${collectionId}/${sourceLessonId}`,
+      );
+    }
+  }
+  revalidatePath(`/kho/${workspaceId}/${target.collectionId}/${targetLessonId}`);
+
+  return { success: `Đã di chuyển ${ids.length} tài liệu.` };
+}
+
 export type { ActionResult };
