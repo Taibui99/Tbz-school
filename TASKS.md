@@ -110,11 +110,13 @@ Acceptance: tạo (metadata-only + external URL), sửa, xóa mềm/khôi phục
 Acceptance: `lib/storage/*` — interface `StorageProvider` (uploadObject, getSignedReadUrl, getSignedUploadUrl, getObjectMetadata, objectExists, deleteObject); `R2StorageProvider` (AWS SDK, presigned GET/PUT, Head/Delete, chỉ khởi tạo khi đủ R2_ACCOUNT_ID/ACCESS_KEY_ID/SECRET/BUCKET — chưa cấu hình → StorageError provider-error); `SupabaseStorageProvider` (bucket `files` private, service role qua `lib/supabase/admin.ts`, createSignedUrl/createSignedUploadUrl/info/remove); `ExternalStorageProvider` (URL trực tiếp, không upload/delete). Factory `getStorageProvider` + `createExternalStorageProvider(url)`. Error mapping: R2 (S3 error codes + HTTP status) và Supabase Storage (statusCode number/string, code NoSuchKey, message heuristic) → StorageError codes (not-found/forbidden/invalid-key/already-exists/quota-exceeded/provider-error). R2_* tách thành env OPTIONAL (bắt buộc chỉ khi dùng R2). Migration `20260815000004_phase6_storage.sql` (bucket `files` private + `avatars`). Verified: unit 84 tests (storage 21+) + live smoke trên Supabase Storage thật (upload→signed→read→metadata→exists→delete, missing→not-found). Đã gỡ lock treo `storage.buckets` (idle-in-transaction giữ RowExclusiveLock từ lần `db push` bị connection error — terminate backend để giải phóng).
 
 ## PHASE 7 — Upload engine
-- [ ] Upload session endpoint/action
-- [ ] Auth and validation
-- [ ] Quota checks
-- [ ] Direct storage upload
-- [ ] Multipart/resumable upload where needed
+- [x] Upload session endpoint/action
+- [x] Auth and validation
+- [x] Quota checks
+- [x] Direct storage upload
+- [x] Multipart/resumable upload where needed
+
+Acceptance: flow tải tệp trực tiếp từ trình duyệt (ADR-009) trên resource details page: `createUploadSessionAction` (auth + chủ sở hữu + validate file + hạn mức 1 GB + `getSignedUploadUrl` 15 phút + set lifecycle `uploading`) → client PUT thẳng lên storage (Supabase Storage / R2 qua `getActiveStorageProvider`) → tính SHA-256 trong trình duyệt → `finalizeUploadAction` (verify object tồn tại + kích thước khớp, version++ trên `resource_files`, set `ready` + metadata) → `cancelUploadAction` (reset `draft` + dọn object). Giới hạn: 50 MB/tệp, 1 GB/user (ADR-018, `lib/upload/validate.ts`). Multipart/resumable không cần ở giới hạn hiện tại — để dành khi nâng >50 MB. Tests: +17 upload-validate (98 unit), live smoke 4/4 (signed PUT → object → metadata → finalize ready → cleanup). UI: nút "Tải tệp lên" trên detail page cho resource draft/failed.
 - [ ] Progress UI
 - [ ] Cancel/retry
 - [ ] Complete/verify upload

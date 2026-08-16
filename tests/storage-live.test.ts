@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { getStorageProvider } from "@/lib/storage";
+import { getActiveStorageProvider, getStorageProvider } from "@/lib/storage";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { StorageError } from "@/lib/storage/types";
 
 const live = describe.skipIf(
   !process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    !process.env.NEXT_PUBLIC_SUPABASE_URL,
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.TEST_USER_ID,
 );
 
 live("Storage live smoke (chạy riêng khi có SUPABASE_SERVICE_ROLE_KEY)", () => {
@@ -62,4 +64,68 @@ live("Storage live smoke (chạy riêng khi có SUPABASE_SERVICE_ROLE_KEY)", () 
       Object.assign(process.env, original);
     }
   });
+
+  it("upload flow thật: signed PUT → object tồn tại → finalize ready → dọn dẹp", async () => {
+    const admin = createAdminClient();
+    const ownerId = process.env.TEST_USER_ID!;
+
+    const { data: resource, error: createError } = await admin
+      .from("resources")
+      .insert({
+        owner_id: ownerId,
+        workspace_id: "0e83d7b2-9c44-4bd3-90a8-65bea7fb4a94",
+        lesson_id: "34588396-2cd4-4816-8e5f-c92727c523e8",
+        title: "Smoke upload",
+        type: "pdf",
+        lifecycle_state: "draft",
+      })
+      .select("id")
+      .single();
+    expect(createError).toBeNull();
+    expect(resource).not.toBeNull();
+
+    const provider = getActiveStorageProvider();
+    const key = `${ownerId}/${resource!.id}/${crypto.randomUUID()}.pdf`;
+    const uploadUrl = await provider.getSignedUploadUrl(key);
+
+    const body = new TextEncoder().encode("smoke pdf");
+    const put = await fetch(uploadUrl, {
+      method: "PUT",
+      body,
+      headers: { "Content-Type": "application/pdf" },
+    });
+    expect(put.ok).toBe(true);
+
+    expect(await provider.objectExists(key)).toBe(true);
+    const meta = await provider.getObjectMetadata(key);
+    expect(meta.sizeBytes).toBe(body.byteLength);
+    expect(meta.contentType).toBe("application/pdf");
+
+    const { error: updateError } = await admin
+      .from("resources")
+      .update({
+        lifecycle_state: "ready",
+        provider: provider.name,
+        storage_key: key,
+        mime: "application/pdf",
+        size_bytes: body.byteLength,
+        original_filename: "smoke.pdf",
+      })
+      .eq("id", resource!.id);
+    expect(updateError).toBeNull();
+
+    const { error: fileError } = await admin.from("resource_files").insert({
+      resource_id: resource!.id,
+      provider: provider.name,
+      storage_key: key,
+      mime: "application/pdf",
+      size_bytes: body.byteLength,
+      version: 1,
+    });
+    expect(fileError).toBeNull();
+
+    await admin.from("resources").delete().eq("id", resource!.id);
+    await provider.deleteObject(key);
+    expect(await provider.objectExists(key)).toBe(false);
+  }, 30000);
 });

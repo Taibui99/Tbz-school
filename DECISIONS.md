@@ -129,6 +129,15 @@ Target zero recurring cost at initial scale, but never assume free tiers are unl
 Reason:
 Budget is constrained and free-tier limits can change.
 
+## ADR-018 — Upload limits
+Status: Accepted
+
+Decision:
+Maximum file size is 50 MB per file; per-user storage quota is 1 GB (Phase 7, `lib/upload/validate.ts`).
+
+Reason:
+50 MB keeps single-shot direct uploads (presigned PUT from browser) reliable within Supabase Storage/R2 limits; 1 GB matches the Supabase free-tier storage allowance under the free-first policy. Limits are constants that can be raised later.
+
 ## ADR-015 — Product scope
 Status: Accepted
 
@@ -158,8 +167,6 @@ Storage/privacy/schema changes can be difficult to reverse once production data 
 
 ## Pending decisions
 
-- Exact maximum file-size limits.
-- Exact per-user storage quota.
 - Office rendering/conversion implementation.
 - Malware scanning provider/strategy.
 - Production backup provider.

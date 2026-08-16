@@ -15,6 +15,7 @@ import {
 } from "@/components/resource/resource-dialogs";
 import { evaluateDownload } from "@/lib/resource/download";
 import { RecordOpen } from "@/components/resource/record-open";
+import { UploadFileButton } from "@/components/upload/upload-file-button";
 
 export const metadata: Metadata = {
   title: "Chi tiết tài liệu",
@@ -226,6 +227,13 @@ export default async function ResourceDetailPage({
               ? "Tài liệu sẵn sàng để tải về."
               : downloadReasonLabel[downloadVerdict.reason]}
           </p>
+          {resource.lifecycle_state !== "ready" &&
+            !resource.external_url &&
+            resource.type !== "url" && (
+              <div className="mt-4">
+                <UploadFileButton resourceId={resource.id} />
+              </div>
+            )}
           {resource.external_url && (
             <div className="mt-3">
               <ExternalLink url={resource.external_url} />

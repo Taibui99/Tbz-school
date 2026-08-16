@@ -1,5 +1,5 @@
 import { StorageError } from "./types";
-import { R2StorageProvider, r2ConfigFromEnv } from "./r2";
+import { R2StorageProvider, isR2ConfigComplete, r2ConfigFromEnv } from "./r2";
 import { SupabaseStorageProvider } from "./supabase-storage";
 import { ExternalStorageProvider } from "./external";
 import type { StorageProvider } from "./types";
@@ -43,6 +43,13 @@ export function getStorageProvider(
   }
 
   throw new StorageError("provider-error", `Provider không hỗ trợ: ${name}`);
+}
+
+export function getActiveStorageProvider(): StorageProvider {
+  if (isR2ConfigComplete()) {
+    return getStorageProvider("r2");
+  }
+  return getStorageProvider("supabase_storage");
 }
 
 export function isSupportedProvider(
