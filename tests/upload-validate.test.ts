@@ -5,6 +5,7 @@ import {
   computeQuotaAfter,
   extensionOf,
   isSupportedExtension,
+  isUploadSessionStale,
   resourceTypeFromFileName,
   validateUploadFile,
 } from "@/lib/upload/validate";
@@ -98,5 +99,27 @@ describe("computeQuotaAfter", () => {
   it("dùng quota mặc định 1 GB", () => {
     expect(computeQuotaAfter(0, MAX_USER_QUOTA_BYTES).allowed).toBe(true);
     expect(computeQuotaAfter(0, MAX_USER_QUOTA_BYTES + 1).allowed).toBe(false);
+  });
+});
+
+describe("isUploadSessionStale", () => {
+  const now = 1_700_000_000_000;
+
+  it("trả true khi phiên quá hạn", () => {
+    expect(isUploadSessionStale(new Date(now - 21 * 60 * 1000), now)).toBe(true);
+  });
+
+  it("trả false khi phiên còn hạn", () => {
+    expect(isUploadSessionStale(new Date(now - 5 * 60 * 1000), now)).toBe(false);
+  });
+
+  it("nhận chuỗi ISO", () => {
+    expect(isUploadSessionStale(new Date(now - 21 * 60 * 1000).toISOString(), now)).toBe(
+      true,
+    );
+  });
+
+  it("trả false khi ngày không hợp lệ", () => {
+    expect(isUploadSessionStale("không-phải-ngày", now)).toBe(false);
   });
 });

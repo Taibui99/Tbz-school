@@ -117,13 +117,13 @@ Acceptance: `lib/storage/*` — interface `StorageProvider` (uploadObject, getSi
 - [x] Multipart/resumable upload where needed
 
 Acceptance: flow tải tệp trực tiếp từ trình duyệt (ADR-009) trên resource details page: `createUploadSessionAction` (auth + chủ sở hữu + validate file + hạn mức 1 GB + `getSignedUploadUrl` 15 phút + set lifecycle `uploading`) → client PUT thẳng lên storage (Supabase Storage / R2 qua `getActiveStorageProvider`) → tính SHA-256 trong trình duyệt → `finalizeUploadAction` (verify object tồn tại + kích thước khớp, version++ trên `resource_files`, set `ready` + metadata) → `cancelUploadAction` (reset `draft` + dọn object). Giới hạn: 50 MB/tệp, 1 GB/user (ADR-018, `lib/upload/validate.ts`). Multipart/resumable không cần ở giới hạn hiện tại — để dành khi nâng >50 MB. Tests: +17 upload-validate (98 unit), live smoke 4/4 (signed PUT → object → metadata → finalize ready → cleanup). UI: nút "Tải tệp lên" trên detail page cho resource draft/failed.
-- [ ] Progress UI
-- [ ] Cancel/retry
-- [ ] Complete/verify upload
-- [ ] Failed upload handling
-- [ ] Abandoned upload cleanup
+- [x] Progress UI
+- [x] Cancel/retry
+- [x] Complete/verify upload
+- [x] Failed upload handling
+- [x] Abandoned upload cleanup
 
-Acceptance: supported files upload without unnecessarily passing large bytes through the application server.
+Acceptance (phase 7.2 — UX/UI): supported files upload without unnecessarily passing large bytes through the application server. `UploadFileButton` (client) với trạng thái idle → creating → uploading (thanh tiến trình % qua XHR `upload.onprogress`) → verifying (SHA-256 + finalize) → done | error; nút "Hủy tải lên" (abort XHR + `cancelUploadAction`), "Thử lại" (giữ file, chạy lại flow) và "Bỏ qua" khi lỗi; hint "Tối đa 50 MB mỗi tệp". Abandoned cleanup: `cleanupStaleUploadAction` + `StaleUploadCleaner` (client) — resource ở `uploading` quá 20 phút (`isUploadSessionStale`, `lib/upload/validate.ts`) tự reset về `draft` + xóa object best-effort khi mở detail page. Tests: +4 staleness (102 unit). Live verify: SSR idle state hiển thị nút + hint + "Chờ tải lên".
 
 ## PHASE 8 — File management
 - [ ] Rename

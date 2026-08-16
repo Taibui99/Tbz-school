@@ -3,6 +3,7 @@ import type { ResourceType } from "@/lib/resource/validate";
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 export const MAX_USER_QUOTA_BYTES = 1024 * 1024 * 1024; // 1 GB
 export const MAX_FILENAME_LENGTH = 255;
+export const UPLOAD_SESSION_STALE_MS = 20 * 60 * 1000; // 20 phút
 
 const EXTENSION_TO_TYPE: Record<string, ResourceType> = {
   pdf: "pdf",
@@ -84,4 +85,14 @@ export function computeQuotaAfter(
 ): { allowed: boolean; usedAfter: number } {
   const usedAfter = usedBytes + additionalBytes;
   return { allowed: usedAfter <= quotaBytes, usedAfter };
+}
+
+export function isUploadSessionStale(
+  updatedAt: string | Date,
+  now: number = Date.now(),
+  staleAfterMs = UPLOAD_SESSION_STALE_MS,
+): boolean {
+  const time = typeof updatedAt === "string" ? Date.parse(updatedAt) : updatedAt.getTime();
+  if (!Number.isFinite(time)) return false;
+  return now - time > staleAfterMs;
 }

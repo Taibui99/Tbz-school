@@ -16,6 +16,7 @@ import {
 import { evaluateDownload } from "@/lib/resource/download";
 import { RecordOpen } from "@/components/resource/record-open";
 import { UploadFileButton } from "@/components/upload/upload-file-button";
+import { StaleUploadCleaner } from "@/components/upload/stale-upload-cleaner";
 
 export const metadata: Metadata = {
   title: "Chi tiết tài liệu",
@@ -132,6 +133,9 @@ export default async function ResourceDetailPage({
   return (
     <div className="px-4 py-8">
       <RecordOpen resourceId={resource.id} />
+      {resource.lifecycle_state === "uploading" && resource.updated_at && (
+        <StaleUploadCleaner resourceId={resource.id} updatedAt={resource.updated_at} />
+      )}
       <Breadcrumbs
         items={[
           { href: "/kho", label: "Kho của tôi" },

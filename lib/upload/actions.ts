@@ -3,7 +3,11 @@
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { validateUploadFile, extensionOf } from "@/lib/upload/validate";
+import {
+  validateUploadFile,
+  extensionOf,
+  isUploadSessionStale,
+} from "@/lib/upload/validate";
 import { getActiveStorageProvider, isSupportedProvider } from "@/lib/storage";
 import { StorageError } from "@/lib/storage/types";
 
@@ -29,7 +33,7 @@ async function loadOwnedResource(
   const { data } = await supabase
     .from("resources")
     .select(
-      "id, owner_id, type, lifecycle_state, provider, storage_key, deleted_at, workspace_id, lesson_id, lessons!inner(collection_id)",
+      "id, owner_id, type, lifecycle_state, provider, storage_key, updated_at, deleted_at, workspace_id, lesson_id, lessons!inner(collection_id)",
     )
     .eq("id", resourceId)
     .maybeSingle();
@@ -242,16 +246,7 @@ export async function cancelUploadAction(
     return { error: "Không có phiên tải lên đang chạy." };
   }
 
-  if (isSupportedProvider(resource.provider) && resource.storage_key) {
-    const provider = getActiveStorageProvider();
-    if (provider.name === resource.provider) {
-      try {
-        await provider.deleteObject(resource.storage_key);
-      } catch {
-        // Bỏ qua lỗi dọn dẹp — resource vẫn phải được reset.
-      }
-    }
-  }
+  await deleteUploadObject(resource.provider, resource.storage_key);
 
   const { error: updateError } = await supabase
     .from("resources")
@@ -269,6 +264,63 @@ export async function cancelUploadAction(
 
   revalidateResourcePaths(resource);
   return { success: "Đã hủy tải lên." };
+}
+
+// ---------- Abandoned upload cleanup ----------
+
+export async function cleanupStaleUploadAction(
+  formData: FormData,
+): Promise<{ success?: string; error?: string }> {
+  const resourceId = String(formData.get("resourceId") ?? "");
+  const updatedAt = String(formData.get("updatedAt") ?? "");
+
+  const supabase = await createClient();
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
+
+  const resource = await loadOwnedResource(supabase, userId, resourceId);
+  if (!resource) return { error: "Tài liệu không tồn tại." };
+  if (resource.lifecycle_state !== "uploading") {
+    return { success: "Không có phiên tải lên đang chạy." };
+  }
+
+  const staleAt = resource.updated_at ?? updatedAt;
+  if (!isUploadSessionStale(staleAt)) {
+    return { error: "Phiên tải lên vẫn còn hiệu lực." };
+  }
+
+  await deleteUploadObject(resource.provider, resource.storage_key);
+
+  const { error: updateError } = await supabase
+    .from("resources")
+    .update({
+      lifecycle_state: "draft",
+      provider: null,
+      storage_key: null,
+      mime: null,
+      size_bytes: null,
+      original_filename: null,
+      content_hash: null,
+    })
+    .eq("id", resourceId);
+  if (updateError) return { error: updateError.message };
+
+  revalidateResourcePaths(resource);
+  return { success: "Đã dọn phiên tải lên bị bỏ dở." };
+}
+
+async function deleteUploadObject(
+  providerValue: string | null,
+  storageKey: string | null,
+) {
+  if (!isSupportedProvider(providerValue) || !storageKey) return;
+  const provider = getActiveStorageProvider();
+  if (provider.name !== providerValue) return;
+  try {
+    await provider.deleteObject(storageKey);
+  } catch {
+    // Bỏ qua lỗi dọn dẹp — resource vẫn phải được reset.
+  }
 }
 
 async function resetResourceAfterFailure(
