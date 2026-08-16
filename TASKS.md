@@ -180,21 +180,21 @@ Acceptance: `components/viewer/video-viewer.tsx` — `<video controls>` native (
 Acceptance (quyết định thực tế): file office là private signed URL nên KHÔNG dùng Google/Microsoft Docs viewer (sẽ phải phơi file công khai — vi phạm rule privacy, xem DECISIONS). Strategy: kind `office` → honest fallback panel trong `resource-viewer.tsx` (giải thích + nút tải về) cho đến khi có pipeline server chuyển đổi/OCR. Processing status n/a (không có server processing). Presentation mode/slide navigation để dành.
 
 ## PHASE 13 — Annotation engine
-- [ ] Annotation schema
-- [ ] Permission rules
+- [x] Annotation schema (bảng `annotations` đã có từ Phase 2; migration `20260816000003_phase13_annotations.sql` thêm index `(resource_id, user_id)`)
+- [x] Permission rules (RLS select/insert/update/delete theo `user_id` = riêng tư theo user)
+- [x] Text annotation
+- [x] Sticky notes
+- [x] Bookmarks
+- [x] Video timestamp notes (nút thêm tại thời điểm hiện tại qua `onTimeChange`)
+- [x] CRUD persistence (server actions create/update/delete + load)
+- [x] Annotation loading (panel `AnnotationSection` dưới viewer, PDF gắn với trang hiện tại qua `onPageChange`)
 - [ ] PDF highlight
 - [ ] Underline/strike-through
 - [ ] Freehand drawing
 - [ ] Shapes
-- [ ] Text annotation
-- [ ] Sticky notes
-- [ ] Bookmarks
-- [ ] Video timestamp notes
-- [ ] CRUD persistence
-- [ ] Annotation loading
 - [ ] Backup/export strategy
 
-Acceptance: annotations persist and never modify original file bytes.
+Acceptance: annotations persist and never modify original file bytes. Ghi chú gắn vị trí (trang PDF / giây video) hoặc cấp tài liệu; mỗi user chỉ thấy ghi chú của mình. Highlight/underline/strike/freehand/shapes và export để dành (cần text-layer + overlay render trên canvas PDF).
 
 ## PHASE 14 — Search
 - [x] PostgreSQL search indexes

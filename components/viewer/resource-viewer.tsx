@@ -28,10 +28,14 @@ export function ResourceViewer({
   viewer,
   resourceId,
   downloadUrl,
+  onPageChange,
+  onTimeChange,
 }: {
   viewer: ViewerResult;
   resourceId: string;
   downloadUrl?: string | null;
+  onPageChange?: (page: number) => void;
+  onTimeChange?: (seconds: number) => void;
 }) {
   if (viewer.kind === "url") {
     return (
@@ -87,6 +91,7 @@ export function ResourceViewer({
           src={viewer.url}
           resourceId={resourceId}
           downloadUrl={downloadUrl}
+          onPageChange={onPageChange}
         />
       )}
       {viewer.kind === "video" && (
@@ -94,6 +99,7 @@ export function ResourceViewer({
           src={viewer.url}
           resourceId={resourceId}
           downloadUrl={downloadUrl}
+          onTimeChange={onTimeChange}
         />
       )}
       {viewer.kind === "text" && (

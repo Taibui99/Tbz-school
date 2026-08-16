@@ -11,10 +11,12 @@ export function VideoViewer({
   src,
   resourceId,
   downloadUrl,
+  onTimeChange,
 }: {
   src: string;
   resourceId: string;
   downloadUrl?: string | null;
+  onTimeChange?: (seconds: number) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [speed, setSpeed] = useState(1);
@@ -47,7 +49,13 @@ export function VideoViewer({
     const video = videoRef.current;
     if (!video) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let lastReported = -1;
     const onTime = () => {
+      const floored = Math.floor(video.currentTime);
+      if (floored !== lastReported) {
+        lastReported = floored;
+        onTimeChange?.(floored);
+      }
       if (!Number.isFinite(video.duration)) return;
       if (video.currentTime < video.duration - 30) {
         if (timer) clearTimeout(timer);
@@ -55,7 +63,7 @@ export function VideoViewer({
           try {
             window.localStorage.setItem(
               `${STORAGE_PREFIX}:${resourceId}`,
-              String(Math.floor(video.currentTime)),
+              String(floored),
             );
           } catch {
             /* ignore */
@@ -68,7 +76,7 @@ export function VideoViewer({
       video.removeEventListener("timeupdate", onTime);
       if (timer) clearTimeout(timer);
     };
-  }, [resourceId]);
+  }, [resourceId, onTimeChange]);
 
   const changeSpeed = (value: number) => {
     setSpeed(value);

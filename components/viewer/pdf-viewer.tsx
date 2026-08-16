@@ -38,10 +38,12 @@ export function PdfViewer({
   src,
   resourceId,
   downloadUrl,
+  onPageChange,
 }: {
   src: string;
   resourceId: string;
   downloadUrl?: string | null;
+  onPageChange?: (page: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRefs = useRef(new Map<number, HTMLCanvasElement>());
@@ -155,6 +157,7 @@ export function PdfViewer({
   // Persist current page
   useEffect(() => {
     if (pageHeight <= 0 || numPages === 0) return;
+    onPageChange?.(currentPage);
     const timer = setTimeout(() => {
       try {
         window.localStorage.setItem(
@@ -166,7 +169,7 @@ export function PdfViewer({
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [currentPage, pageHeight, numPages, resourceId]);
+  }, [currentPage, pageHeight, numPages, resourceId, onPageChange]);
 
   const renderPage = useCallback(
     async (index: number, scale: number) => {

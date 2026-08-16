@@ -15,7 +15,7 @@ import {
 } from "@/components/resource/resource-dialogs";
 import { evaluateDownload } from "@/lib/resource/download";
 import { resolveViewer } from "@/lib/resource/view";
-import { ResourceViewer } from "@/components/viewer/resource-viewer";
+import { ResourceArea } from "@/components/annotation/resource-area";
 import { RecordOpen } from "@/components/resource/record-open";
 import { UploadFileButton } from "@/components/upload/upload-file-button";
 import { StaleUploadCleaner } from "@/components/upload/stale-upload-cleaner";
@@ -208,7 +208,7 @@ export default async function ResourceDetailPage({
 
       <section className="mt-6">
         <h2 className="mb-2 text-sm font-medium">Xem tài liệu</h2>
-        <ResourceViewer
+        <ResourceArea
           viewer={viewer}
           resourceId={resource.id}
           downloadUrl={downloadUrl}
