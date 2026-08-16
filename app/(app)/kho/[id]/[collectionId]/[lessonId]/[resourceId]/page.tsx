@@ -20,6 +20,7 @@ import { RecordOpen } from "@/components/resource/record-open";
 import { UploadFileButton } from "@/components/upload/upload-file-button";
 import { StaleUploadCleaner } from "@/components/upload/stale-upload-cleaner";
 import { SharePanel } from "@/components/resource/share-panel";
+import { VersionsPanel } from "@/components/resource/versions-panel";
 import { getShareInfo } from "@/lib/resource/public";
 import { Button } from "@/components/ui/button";
 
@@ -102,7 +103,7 @@ export default async function ResourceDetailPage({
   const { data: resource } = await supabase
     .from("resources")
     .select(
-      "id, title, description, type, visibility, lifecycle_state, provider, storage_key, external_url, size_bytes, content_hash, original_filename, mime, created_at, updated_at, deleted_at, resource_files(id, provider, storage_key, mime, size_bytes, sha256, version), external_resources(url, provider_type, title, thumbnail_url), resource_tags(tag_id, tags(id, name)), favorites(id)",
+      "id, title, description, type, visibility, lifecycle_state, provider, storage_key, external_url, size_bytes, content_hash, original_filename, mime, created_at, updated_at, deleted_at, resource_files(id, provider, storage_key, mime, size_bytes, sha256, version, created_at), external_resources(url, provider_type, title, thumbnail_url), resource_tags(tag_id, tags(id, name)), favorites(id)",
     )
     .eq("id", resourceId)
     .eq("favorites.user_id", user.id)
@@ -306,6 +307,34 @@ export default async function ResourceDetailPage({
             resourceId={resource.id}
             allTags={(tags ?? []).map((tag) => ({ id: tag.id, name: tag.name }))}
             selectedIds={selectedTagIds}
+          />
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-xl border border-border bg-card p-4">
+        <h2 className="flex items-center gap-2 text-sm font-medium">
+          <Download aria-hidden="true" className="size-4 text-muted-foreground" />
+          Phiên bản tệp
+        </h2>
+        <div className="mt-3">
+          <VersionsPanel
+            resourceId={resource.id}
+            files={(resource.resource_files ?? []).map((file) => ({
+              id: file.id,
+              version: file.version,
+              provider: file.provider,
+              storage_key: file.storage_key,
+              mime: file.mime,
+              size_bytes: file.size_bytes,
+              sha256: file.sha256,
+              created_at: file.created_at ?? "",
+            }))}
+            currentKey={resource.storage_key}
+            canUpload={
+              resource.lifecycle_state === "ready" &&
+              resource.type !== "url" &&
+              !!resource.storage_key
+            }
           />
         </div>
       </section>

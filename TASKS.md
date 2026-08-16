@@ -245,15 +245,17 @@ Acceptance: `/kham-pha` (khám phá) — lọc theo từ khóa (title/descriptio
 Acceptance: `/tong-quan` (page-level guard đăng nhập, header có link "Tổng quan" khi đã đăng nhập) — 4 widget thống kê (tài liệu, yêu thích, đã mở, workspace), "Tiếp tục xem" (`ContinueViewing` đọc localStorage `tbz:pdf:*`/`tbz:video:*` với ngưỡng trang≥2/giây≥10, resolve context qua `getContinueContextAction` + RLS, link về `/kho/...`), "Yêu thích gần đây" (link `/kho` nếu chủ sở hữu, `/thu-vien` nếu không), "Đã mở gần đây" (activity_logs action=open, dedupe), "Hoạt động gần đây" (timeline, nhãn hành động tiếng Việt). Limitation: last position lưu localStorage (cùng thiết bị) — resume chéo thiết bị cần state server-side (để dành); hiện mới ghi log action=open. Anon vào `/tong-quan` chỉ thấy trang đăng nhập, không lộ dữ liệu (verify smoke).
 
 ## PHASE 18 — Trash/versioning
-- [ ] Soft delete
-- [ ] Trash view
-- [ ] Restore
-- [ ] Permanent delete
-- [ ] Cleanup policy
-- [ ] Resource versions
-- [ ] Upload new version
-- [ ] Restore version
-- [ ] Safe physical-object lifecycle
+- [x] Soft delete (đã có `deleted_at` + actions delete/restore từ Phase 8)
+- [x] Trash view (`/thung-rac`, index `(owner_id, deleted_at)`, link trong header)
+- [x] Restore (per-item; RLS update own)
+- [x] Permanent delete (xóa object chỉ khi hết tham chiếu — `shouldDeleteObject` đếm resources.storage_key + resource_files.storage_key)
+- [x] Cleanup policy (nút "Dọn thùng rác" xóa toàn bộ; auto-purge theo lịch để dành cho Phase 29/30 cron)
+- [x] Resource versions (resource_files đã lưu lịch sử từng upload)
+- [x] Upload new version (`createVersionUploadSessionAction`/`finalizeVersionUploadAction` — không chạm resource khi đang tải, version = max+1, đổi storage_key về tệp mới)
+- [x] Restore version (`restoreVersionAction` — trỏ lại storage_key của phiên bản cũ, object cũ vẫn còn)
+- [x] Safe physical-object lifecycle (index storage_key 2 bảng; xóa object chỉ khi không còn ref; bản sao "Lưu vào kho" giữ ref)
+
+Acceptance: migration `20260816000004_phase18_trash.sql`. Thùng rác liệt kê tài liệu đã xóa (owner) với Khôi phục/Xóa vĩnh viễn/Dọn thùng rác (có confirm). Xóa vĩnh viễn xóa object storage chỉ khi không còn resource hoặc resource_files nào tham chiếu (`tests/trash.test.ts`). Phiên bản tệp: panel trên detail page (phiên bản hiện tại, tải bản mới, khôi phục bản cũ); các phiên bản cũ giữ object trong lịch sử. Smoke: /thung-rac 200 (rỗng + có item), restore/permanent qua RLS OK, detail hiện "Phiên bản tệp", header có "Thùng rác". Session cookie đã refresh (expires_at 1786885065).
 
 ## PHASE 19 — Deduplication
 - [ ] File hashing

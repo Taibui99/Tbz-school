@@ -46,6 +46,12 @@ export async function SiteHeader() {
                 Kho của tôi
               </Link>
               <Link
+                href="/thung-rac"
+                className="rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Thùng rác
+              </Link>
+              <Link
                 href="/ho-so"
                 className="rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground"
               >

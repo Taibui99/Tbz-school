@@ -9,6 +9,10 @@ import {
   createUploadSessionAction,
   finalizeUploadAction,
 } from "@/lib/upload/actions";
+import {
+  createVersionUploadSessionAction,
+  finalizeVersionUploadAction,
+} from "@/lib/resource/version-actions";
 import { MAX_FILE_SIZE_BYTES } from "@/lib/upload/validate";
 
 type UploadStatus = "idle" | "creating" | "uploading" | "verifying" | "done" | "error";
@@ -26,7 +30,13 @@ async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
     .join("");
 }
 
-export function UploadFileButton({ resourceId }: { resourceId: string }) {
+export function UploadFileButton({
+  resourceId,
+  mode = "initial",
+}: {
+  resourceId: string;
+  mode?: "initial" | "version";
+}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
@@ -63,7 +73,10 @@ export function UploadFileButton({ resourceId }: { resourceId: string }) {
       formData.set("resourceId", resourceId);
       formData.set("fileName", file.name);
       formData.set("sizeBytes", String(file.size));
-      session = await createUploadSessionAction(formData);
+      session =
+        mode === "version"
+          ? await createVersionUploadSessionAction(formData)
+          : await createUploadSessionAction(formData);
     } catch {
       setStatus("error");
       setMessage("Không tạo được phiên tải lên.");
@@ -94,14 +107,21 @@ export function UploadFileButton({ resourceId }: { resourceId: string }) {
       finalForm.set("sha256", sha256);
       finalForm.set("mime", file.type || "");
 
-      const result = await finalizeUploadAction(finalForm);
+      const result =
+        mode === "version"
+          ? await finalizeVersionUploadAction(
+              (finalForm.set("fileName", file.name), finalForm),
+            )
+          : await finalizeUploadAction(finalForm);
       if (result.error) {
         setStatus("error");
         setMessage(result.error);
         return;
       }
       setStatus("done");
-      setMessage("Đã tải tệp lên.");
+      setMessage(
+        mode === "version" ? "Đã tải phiên bản mới." : "Đã tải tệp lên.",
+      );
       router.refresh();
     } catch {
       setStatus("error");
@@ -207,7 +227,7 @@ export function UploadFileButton({ resourceId }: { resourceId: string }) {
             onClick={() => inputRef.current?.click()}
           >
             <UploadCloud aria-hidden="true" />
-            Tải tệp lên
+            {mode === "version" ? "Tải phiên bản mới" : "Tải tệp lên"}
           </Button>
           <p className="text-xs text-muted-foreground">
             Tối đa {Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} MB mỗi tệp.
