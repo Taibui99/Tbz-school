@@ -14,8 +14,7 @@ export function GET(request: Request) {
     );
   }
   const url = new URL(request.url);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? url.origin;
-  const redirectUri = `${appUrl}/api/auth/google/callback`;
+  const redirectUri = `${url.origin}/api/auth/google/callback`;
   const state = createOAuthState();
   return NextResponse.redirect(buildConsentUrl(redirectUri, state));
 }

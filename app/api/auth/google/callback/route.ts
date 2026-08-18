@@ -17,8 +17,7 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   if (!code) return fail("no-code");
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? url.origin;
-  const redirectUri = `${appUrl}/api/auth/google/callback`;
+  const redirectUri = `${url.origin}/api/auth/google/callback`;
 
   try {
     const tokens = await exchangeCodeForTokens(code, redirectUri);
