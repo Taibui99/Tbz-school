@@ -5,6 +5,7 @@ import {
   validateTags,
   validateTitle,
   validateUrl,
+  youtubeIdFromUrl,
 } from "@/lib/resource/validate";
 
 describe("validateTitle", () => {
@@ -89,6 +90,36 @@ describe("validateTags", () => {
   });
 });
 
+describe("youtubeIdFromUrl", () => {
+  const ID = "dQw4w9WgXcQ";
+
+  it("chấp nhận ID thô 11 ký tự", () => {
+    expect(youtubeIdFromUrl(ID)).toBe(ID);
+  });
+
+  it("trích ID từ youtu.be", () => {
+    expect(youtubeIdFromUrl(`https://youtu.be/${ID}`)).toBe(ID);
+    expect(youtubeIdFromUrl(`https://youtu.be/${ID}?t=30`)).toBe(ID);
+  });
+
+  it("trích ID từ watch?v=", () => {
+    expect(youtubeIdFromUrl(`https://www.youtube.com/watch?v=${ID}`)).toBe(ID);
+    expect(youtubeIdFromUrl(`https://m.youtube.com/watch?v=${ID}`)).toBe(ID);
+  });
+
+  it("trích ID từ /embed/ và /shorts/", () => {
+    expect(youtubeIdFromUrl(`https://www.youtube.com/embed/${ID}`)).toBe(ID);
+    expect(youtubeIdFromUrl(`https://www.youtube.com/shorts/${ID}`)).toBe(ID);
+  });
+
+  it("trả null khi không hợp lệ", () => {
+    expect(youtubeIdFromUrl("https://example.com/x")).toBeNull();
+    expect(youtubeIdFromUrl("abc")).toBeNull();
+    expect(youtubeIdFromUrl("")).toBeNull();
+    expect(youtubeIdFromUrl(`https://www.youtube.com/watch?v=short`)).toBeNull();
+  });
+});
+
 describe("validateResourceForm", () => {
   it("accepts a valid pdf resource", () => {
     const errors = validateResourceForm({
@@ -125,6 +156,35 @@ describe("validateResourceForm", () => {
       type: "url",
       visibility: "unlisted",
       url: "https://example.com",
+    });
+    expect(errors).toEqual({});
+  });
+
+  it("accepts video with valid youtube link", () => {
+    const errors = validateResourceForm({
+      title: "Bài giảng",
+      type: "video",
+      visibility: "private",
+      youtubeUrl: "https://youtu.be/dQw4w9WgXcQ",
+    });
+    expect(errors).toEqual({});
+  });
+
+  it("rejects video with invalid youtube link", () => {
+    const errors = validateResourceForm({
+      title: "Bài giảng",
+      type: "video",
+      visibility: "private",
+      youtubeUrl: "https://example.com/xyz",
+    });
+    expect(errors.youtubeUrl).toContain("không hợp lệ");
+  });
+
+  it("cho phép video không có link youtube (tải mp4 sau)", () => {
+    const errors = validateResourceForm({
+      title: "Video nội bộ",
+      type: "video",
+      visibility: "private",
     });
     expect(errors).toEqual({});
   });

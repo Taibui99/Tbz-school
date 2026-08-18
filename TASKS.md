@@ -411,5 +411,15 @@ Acceptance: CI passes from a clean checkout.
 - [ ] Document release
 - [ ] Define rollback procedure
 
+## PHASE 32 — Video qua YouTube (ADR-022)
+- [x] Migration `20260817000001_phase22_video_youtube.sql`: `resources.youtube_id` (11 ký tự, CHECK regex) + index — đã push prod
+- [x] Viewer: resource video có `youtube_id` → YouTube embed (`youtube-nocookie.com/embed`), không cần storage
+- [x] Tạo/sửa video: nhập link YouTube (watch/youtu.be/embed/shorts hoặc ID thô) → chuẩn hóa `youtube_id`; video không link vẫn tải mp4 như cũ
+- [x] Copy/save-to-library giữ `youtube_id`
+- [x] Giảm quota lưu trữ/user 1 GB → 250 MB (ADR-018, ADR-022) vì Supabase free chỉ 1 GB tổng
+- [x] Tests: youtubeIdFromUrl (+11), quota 250MB; typecheck/lint/build OK
+- [x] Smoke: tạo video resource youtube_id → detail page render iframe YouTube
+- [ ] Upload tự động qua YouTube Data API v3 (OAuth account trường, `GOOGLE_CLIENT_ID/SECRET`) — chờ account + creds
+
 Definition of done:
 User can register → create workspace → create collection → create lesson → upload/import resource → store safely → open in browser → interact with supported formats → retain annotations/state → choose visibility → share/discover according to permissions → search → favorite → delete/restore → manage quota.

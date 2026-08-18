@@ -62,6 +62,7 @@ function ResourceFields({
   defaultType,
   defaultVisibility,
   defaultUrl,
+  defaultYoutubeUrl,
 }: {
   state: ActionResult;
   defaultValue?: string;
@@ -69,6 +70,7 @@ function ResourceFields({
   defaultType?: ResourceType;
   defaultVisibility?: string;
   defaultUrl?: string;
+  defaultYoutubeUrl?: string;
 }) {
   const [type, setType] = useState<ResourceType>(
     defaultType ?? "pdf",
@@ -165,6 +167,31 @@ function ResourceFields({
           )}
         </div>
       )}
+      {type === "video" && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="youtubeUrl">
+            Liên kết YouTube (tùy chọn) — bài giảng
+          </Label>
+          <Input
+            id="youtubeUrl"
+            name="youtubeUrl"
+            type="url"
+            maxLength={2048}
+            placeholder="https://youtu.be/xxxxxxxxxxx"
+            defaultValue={defaultYoutubeUrl}
+            aria-invalid={Boolean(state.fieldErrors?.youtubeUrl)}
+          />
+          {state.fieldErrors?.youtubeUrl && (
+            <p className="text-xs text-destructive">
+              {state.fieldErrors.youtubeUrl}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Video sẽ phát qua YouTube (không tốn dung lượng lưu trữ). Nếu bỏ
+            trống, bạn có thể tải tệp mp4 lên như bình thường.
+          </p>
+        </div>
+      )}
     </>
   );
 }
@@ -233,6 +260,7 @@ export function EditResourceDialog({
     type: ResourceType;
     visibility: string;
     externalUrl: string | null;
+    youtubeId: string | null;
   };
   workspaceId: string;
   collectionId: string;
@@ -273,6 +301,7 @@ export function EditResourceDialog({
             defaultType={resource.type}
             defaultVisibility={resource.visibility}
             defaultUrl={resource.externalUrl ?? ""}
+            defaultYoutubeUrl={resource.youtubeId ?? ""}
           />
           <DialogFooter>
             <Button type="submit" disabled={pending}>

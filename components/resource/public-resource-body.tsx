@@ -23,6 +23,7 @@ export interface PublicResource {
   provider: string | null;
   storage_key: string | null;
   external_url: string | null;
+  youtube_id: string | null;
   created_at: string | null;
 }
 

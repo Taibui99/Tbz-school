@@ -24,6 +24,37 @@ export const MAX_DESCRIPTION_LENGTH = 1000;
 export const MAX_URL_LENGTH = 2048;
 export const MAX_TAGS_PER_RESOURCE = 12;
 
+export const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+
+export function youtubeIdFromUrl(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (YOUTUBE_ID_PATTERN.test(v)) return v;
+  let parsed: URL;
+  try {
+    parsed = new URL(v);
+  } catch {
+    return null;
+  }
+  const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+  if (host === "youtu.be") {
+    const id = parsed.pathname.replace(/^\//, "");
+    return YOUTUBE_ID_PATTERN.test(id) ? id : null;
+  }
+  if (host === "youtube.com" || host === "m.youtube.com") {
+    if (
+      parsed.pathname.startsWith("/embed/") ||
+      parsed.pathname.startsWith("/shorts/")
+    ) {
+      const id = parsed.pathname.split("/")[2] ?? "";
+      return YOUTUBE_ID_PATTERN.test(id) ? id : null;
+    }
+    const id = parsed.searchParams.get("v");
+    return id && YOUTUBE_ID_PATTERN.test(id) ? id : null;
+  }
+  return null;
+}
+
 export function isResourceType(value: string): value is ResourceType {
   return (RESOURCE_TYPES as readonly string[]).includes(value);
 }
@@ -85,6 +116,7 @@ export function validateResourceForm(input: {
   type: string;
   visibility: string;
   url?: string;
+  youtubeUrl?: string;
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -105,6 +137,13 @@ export function validateResourceForm(input: {
   if (input.type === "url") {
     const urlError = validateUrl(input.url ?? "");
     if (urlError) errors.url = urlError;
+  }
+
+  if (input.type === "video" && input.youtubeUrl?.trim()) {
+    if (youtubeIdFromUrl(input.youtubeUrl) === null) {
+      errors.youtubeUrl =
+        "Đường dẫn YouTube không hợp lệ (vd: https://youtu.be/xxxxxxxxxxx).";
+    }
   }
 
   return errors;

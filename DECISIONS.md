@@ -130,13 +130,22 @@ Reason:
 Budget is constrained and free-tier limits can change.
 
 ## ADR-018 — Upload limits
-Status: Accepted
+Status: Accepted (updated Phase 22)
 
 Decision:
-Maximum file size is 50 MB per file; per-user storage quota is 1 GB (Phase 7, `lib/upload/validate.ts`).
+Maximum file size is 50 MB per file; per-user storage quota is 250 MB (Phase 7, `lib/upload/validate.ts`).
 
 Reason:
-50 MB keeps single-shot direct uploads (presigned PUT from browser) reliable within Supabase Storage/R2 limits; 1 GB matches the Supabase free-tier storage allowance under the free-first policy. Limits are constants that can be raised later.
+50 MB keeps single-shot direct uploads (presigned PUT from browser) reliable within Supabase Storage/R2 limits. Quota ban đầu là 1 GB nhưng Supabase free-tier chỉ cấp **1 GB tổng** storage/project — 1 user có thể ngốn hết bucket nên hạ xuống 250 MB/user (ADR-022). Limits are constants that can be raised later.
+
+## ADR-022 — Video qua YouTube (không tốn storage)
+Status: Accepted (Phase 22)
+
+Decision:
+Resource loại video có thể lưu `youtube_id` thay vì file mp4 trong storage. Khi có `youtube_id`, viewer hiển thị **YouTube embed** (`youtube-nocookie.com/embed`) — không tốn dung lượng lưu trữ, không tính egress. Video mp4 nội bộ nhỏ vẫn dùng đường cũ (Supabase/R2).
+
+Reason:
+Video là thứ ngốn dung lượng nhất (1 bài giảng 100–500 MB, vượt xa 1 GB free-tier Supabase). Trường học dùng kênh YouTube chuyên dụng của trường (unlisted) là miễn phí, không giới hạn, không cần thẻ. Phase sau sẽ thêm upload tự động qua YouTube Data API v3 (OAuth 1 lần bằng account trường, `GOOGLE_CLIENT_ID`/`SECRET` server-side).
 
 ## ADR-015 — Product scope
 Status: Accepted

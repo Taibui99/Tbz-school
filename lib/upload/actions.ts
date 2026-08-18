@@ -7,6 +7,8 @@ import {
   validateUploadFile,
   extensionOf,
   isUploadSessionStale,
+  MAX_USER_QUOTA_BYTES,
+  MAX_USER_QUOTA_LABEL,
 } from "@/lib/upload/validate";
 import { getActiveStorageProvider, isSupportedProvider } from "@/lib/storage";
 import { StorageError } from "@/lib/storage/types";
@@ -109,8 +111,8 @@ export async function createUploadSessionAction(
   }
 
   const usedBytes = await sumUserUsage(supabase, userId);
-  if (usedBytes + sizeBytes > 1024 * 1024 * 1024) {
-    return { error: "Đã vượt hạn mức lưu trữ (1 GB)." };
+  if (usedBytes + sizeBytes > MAX_USER_QUOTA_BYTES) {
+    return { error: `Đã vượt hạn mức lưu trữ (${MAX_USER_QUOTA_LABEL}).` };
   }
 
   const provider = getActiveStorageProvider();

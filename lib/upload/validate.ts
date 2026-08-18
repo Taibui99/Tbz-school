@@ -1,7 +1,10 @@
 import type { ResourceType } from "@/lib/resource/validate";
 
 export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
-export const MAX_USER_QUOTA_BYTES = 1024 * 1024 * 1024; // 1 GB
+export const MAX_USER_QUOTA_BYTES = 250 * 1024 * 1024; // 250 MB
+export const MAX_USER_QUOTA_LABEL = `${Math.round(
+  MAX_USER_QUOTA_BYTES / 1024 / 1024,
+)} MB`;
 export const MAX_FILENAME_LENGTH = 255;
 export const UPLOAD_SESSION_STALE_MS = 20 * 60 * 1000; // 20 phút
 

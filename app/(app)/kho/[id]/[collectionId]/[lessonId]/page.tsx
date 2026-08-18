@@ -21,6 +21,7 @@ type ResourceRow = {
   visibility: string;
   lifecycle_state: string;
   external_url: string | null;
+  youtube_id: string | null;
   deleted_at: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -40,6 +41,7 @@ function mapResource(row: ResourceRow): ResourceListItem {
     visibility: row.visibility,
     lifecycle_state: row.lifecycle_state,
     external_url: row.external_url,
+    youtube_id: row.youtube_id,
     deleted_at: row.deleted_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -90,7 +92,7 @@ export default async function LessonDetailPage({
   const { data: resources } = await supabase
     .from("resources")
     .select(
-      "id, title, description, type, visibility, lifecycle_state, external_url, deleted_at, created_at, updated_at, resource_tags(tag_id, tags(id, name)), favorites(id)",
+      "id, title, description, type, visibility, lifecycle_state, external_url, youtube_id, deleted_at, created_at, updated_at, resource_tags(tag_id, tags(id, name)), favorites(id)",
     )
     .eq("lesson_id", lessonId)
     .eq("favorites.user_id", user.id)

@@ -201,7 +201,7 @@ export async function savePublicResourceAction(
   const { data: src } = await supabase
     .from("resources")
     .select(
-      "id, title, description, type, visibility, lifecycle_state, provider, storage_key, mime, size_bytes, content_hash, original_filename, external_url",
+      "id, title, description, type, visibility, lifecycle_state, provider, storage_key, mime, size_bytes, content_hash, original_filename, external_url, youtube_id",
     )
     .eq("id", resourceId)
     .eq("visibility", "public")
@@ -265,6 +265,7 @@ export async function savePublicResourceAction(
       content_hash: src.content_hash,
       original_filename: src.original_filename,
       external_url: isExternal ? src.external_url : null,
+      youtube_id: src.youtube_id,
     })
     .select("id")
     .single();

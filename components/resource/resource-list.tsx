@@ -30,6 +30,7 @@ export type ResourceListItem = {
   visibility: string;
   lifecycle_state: string;
   external_url: string | null;
+  youtube_id: string | null;
   deleted_at: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -237,6 +238,7 @@ export function ResourceList({
                   type: item.type as ResourceType,
                   visibility: item.visibility,
                   externalUrl: item.external_url,
+                  youtubeId: item.youtube_id,
                 }}
                 workspaceId={workspaceId}
                 collectionId={collectionId}

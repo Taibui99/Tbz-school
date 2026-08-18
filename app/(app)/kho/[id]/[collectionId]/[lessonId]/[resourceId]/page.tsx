@@ -103,7 +103,7 @@ export default async function ResourceDetailPage({
   const { data: resource } = await supabase
     .from("resources")
     .select(
-      "id, title, description, type, visibility, lifecycle_state, provider, storage_key, external_url, size_bytes, content_hash, original_filename, mime, created_at, updated_at, deleted_at, resource_files(id, provider, storage_key, mime, size_bytes, sha256, version, created_at), external_resources(url, provider_type, title, thumbnail_url), resource_tags(tag_id, tags(id, name)), favorites(id)",
+      "id, title, description, type, visibility, lifecycle_state, provider, storage_key, external_url, youtube_id, size_bytes, content_hash, original_filename, mime, created_at, updated_at, deleted_at, resource_files(id, provider, storage_key, mime, size_bytes, sha256, version, created_at), external_resources(url, provider_type, title, thumbnail_url), resource_tags(tag_id, tags(id, name)), favorites(id)",
     )
     .eq("id", resourceId)
     .eq("favorites.user_id", user.id)
@@ -136,6 +136,7 @@ export default async function ResourceDetailPage({
     provider: resource.provider,
     storage_key: resource.storage_key,
     external_url: resource.external_url,
+    youtube_id: resource.youtube_id,
     deleted_at: resource.deleted_at,
   });
   const downloadUrl =
@@ -192,6 +193,7 @@ export default async function ResourceDetailPage({
               type: resource.type,
               visibility: resource.visibility,
               externalUrl: resource.external_url,
+              youtubeId: resource.youtube_id,
             }}
             workspaceId={id}
             collectionId={collectionId}

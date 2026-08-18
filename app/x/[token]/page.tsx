@@ -40,6 +40,7 @@ export default async function SharedLinkPage({
     provider: (row.provider as string | null) ?? null,
     storage_key: (row.storage_key as string | null) ?? null,
     external_url: (row.external_url as string | null) ?? null,
+    youtube_id: (row.youtube_id as string | null) ?? null,
     created_at: (row.created_at as string | null) ?? null,
   };
 
@@ -52,6 +53,7 @@ export default async function SharedLinkPage({
       provider: resource.provider,
       storage_key: resource.storage_key,
       external_url: resource.external_url,
+      youtube_id: resource.youtube_id,
       deleted_at: null,
     }),
   ]);

@@ -96,7 +96,8 @@ describe("computeQuotaAfter", () => {
     expect(result.allowed).toBe(false);
   });
 
-  it("dùng quota mặc định 1 GB", () => {
+  it("dùng quota mặc định 250 MB", () => {
+    expect(MAX_USER_QUOTA_BYTES).toBe(250 * 1024 * 1024);
     expect(computeQuotaAfter(0, MAX_USER_QUOTA_BYTES).allowed).toBe(true);
     expect(computeQuotaAfter(0, MAX_USER_QUOTA_BYTES + 1).allowed).toBe(false);
   });

@@ -73,6 +73,20 @@ export function ResourceViewer({
     );
   }
 
+  if (viewer.kind === "video" && viewer.youtubeId) {
+    return (
+      <Suspense fallback={<Loading />}>
+        <VideoViewer
+          src={viewer.url ?? ""}
+          resourceId={resourceId}
+          downloadUrl={downloadUrl}
+          onTimeChange={onTimeChange}
+          youtubeId={viewer.youtubeId}
+        />
+      </Suspense>
+    );
+  }
+
   if (!("url" in viewer) || viewer.url === null) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card py-12 text-center">
@@ -100,6 +114,7 @@ export function ResourceViewer({
           resourceId={resourceId}
           downloadUrl={downloadUrl}
           onTimeChange={onTimeChange}
+          youtubeId={viewer.youtubeId}
         />
       )}
       {viewer.kind === "text" && (

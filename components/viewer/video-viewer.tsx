@@ -12,11 +12,13 @@ export function VideoViewer({
   resourceId,
   downloadUrl,
   onTimeChange,
+  youtubeId,
 }: {
   src: string;
   resourceId: string;
   downloadUrl?: string | null;
   onTimeChange?: (seconds: number) => void;
+  youtubeId?: string | null;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [speed, setSpeed] = useState(1);
@@ -82,6 +84,28 @@ export function VideoViewer({
     setSpeed(value);
     if (videoRef.current) videoRef.current.playbackRate = value;
   };
+
+  if (youtubeId) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="aspect-video w-full bg-black">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0&modestbranding=1`}
+            title="Phát video YouTube"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="size-full"
+          />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2">
+          <p className="text-xs text-muted-foreground">
+            Video phát qua YouTube (unlisted) — không tốn dung lượng lưu trữ của
+            TBZ School.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">

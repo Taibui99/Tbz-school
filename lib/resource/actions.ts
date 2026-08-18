@@ -4,10 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  isVisibility,
   validateResourceForm,
   validateTags,
-  validateTitle,
+  youtubeIdFromUrl,
 } from "@/lib/resource/validate";
 import type { ActionResult } from "@/lib/workspace/actions";
 
@@ -57,6 +56,7 @@ export async function createResourceAction(
   const type = String(formData.get("type") ?? "");
   const visibility = String(formData.get("visibility") ?? "");
   const url = String(formData.get("url") ?? "");
+  const youtubeUrl = String(formData.get("youtubeUrl") ?? "");
 
   const fieldErrors = validateResourceForm({
     title,
@@ -64,6 +64,7 @@ export async function createResourceAction(
     type,
     visibility,
     url,
+    youtubeUrl,
   });
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
@@ -75,6 +76,7 @@ export async function createResourceAction(
   if (!lesson) return { error: "Bài học không thuộc workspace." };
 
   const isExternal = type === "url";
+  const isYoutubeVideo = type === "video" && youtubeUrl.trim().length > 0;
   const { data, error } = await supabase
     .from("resources")
     .insert({
@@ -85,9 +87,10 @@ export async function createResourceAction(
       description: description.trim() || null,
       type,
       visibility,
-      lifecycle_state: isExternal ? "ready" : "draft",
+      lifecycle_state: isExternal || isYoutubeVideo ? "ready" : "draft",
       provider: isExternal ? "external" : null,
       external_url: isExternal ? url.trim() : null,
+      youtube_id: isYoutubeVideo ? youtubeIdFromUrl(youtubeUrl) : null,
     })
     .select("id")
     .single();
@@ -118,23 +121,30 @@ export async function updateResourceAction(
   const lessonId = String(formData.get("lessonId") ?? "");
   const title = String(formData.get("title") ?? "");
   const description = String(formData.get("description") ?? "");
+  const type = String(formData.get("type") ?? "");
   const visibility = String(formData.get("visibility") ?? "");
+  const youtubeUrl = String(formData.get("youtubeUrl") ?? "");
 
-  const titleError = validateTitle(title);
-  if (titleError) return { fieldErrors: { title: titleError } };
-  if (!isVisibility(visibility)) {
-    return { fieldErrors: { visibility: "Chế độ hiển thị không hợp lệ." } };
-  }
+  const fieldErrors = validateResourceForm({
+    title,
+    description,
+    type,
+    visibility,
+    youtubeUrl,
+  });
+  if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
   const supabase = await createClient();
   if (!(await requireUser(supabase))) return { error: "Chưa đăng nhập." };
 
+  const isYoutubeVideo = type === "video" && youtubeUrl.trim().length > 0;
   const { error } = await supabase
     .from("resources")
     .update({
       title: title.trim(),
       description: description.trim() || null,
       visibility,
+      youtube_id: isYoutubeVideo ? youtubeIdFromUrl(youtubeUrl) : null,
     })
     .eq("id", id);
   if (error) return { error: error.message };
@@ -310,7 +320,7 @@ export async function copyResourceAction(formData: FormData) {
   const { data: src } = await supabase
     .from("resources")
     .select(
-      "id, title, description, type, visibility, lifecycle_state, provider, external_url, workspace_id, lesson_id, lessons!inner(collection_id)",
+      "id, title, description, type, visibility, lifecycle_state, provider, external_url, youtube_id, workspace_id, lesson_id, lessons!inner(collection_id)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -322,6 +332,7 @@ export async function copyResourceAction(formData: FormData) {
   }
 
   const isExternal = src.type === "url" || src.provider === "external";
+  const isYoutubeVideo = src.type === "video" && !!src.youtube_id;
   const { data: copy, error } = await supabase
     .from("resources")
     .insert({
@@ -332,9 +343,10 @@ export async function copyResourceAction(formData: FormData) {
       description: src.description,
       type: src.type,
       visibility: src.visibility,
-      lifecycle_state: isExternal ? "ready" : "draft",
+      lifecycle_state: isExternal || isYoutubeVideo ? "ready" : "draft",
       provider: isExternal ? "external" : null,
       external_url: isExternal ? src.external_url : null,
+      youtube_id: isYoutubeVideo ? src.youtube_id : null,
     })
     .select("id")
     .single();

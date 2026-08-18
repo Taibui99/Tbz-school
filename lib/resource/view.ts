@@ -11,7 +11,8 @@ export type ViewerKind =
   | "unsupported";
 
 export type ViewerResult =
-  | { kind: "pdf" | "video" | "image" | "audio" | "text"; url: string | null }
+  | { kind: "pdf" | "image" | "audio" | "text"; url: string | null }
+  | { kind: "video"; url: string | null; youtubeId?: string | null }
   | { kind: "url"; url: string | null }
   | { kind: "office" | "unsupported" };
 
@@ -22,6 +23,7 @@ export interface ViewContext {
   provider: string | null;
   storage_key: string | null;
   external_url: string | null;
+  youtube_id: string | null;
   deleted_at: string | null;
 }
 
@@ -55,6 +57,9 @@ export async function resolveViewer(ctx: ViewContext): Promise<ViewerResult> {
   const kind = viewerKindFor(ctx);
   if (kind === "url") return { kind, url: ctx.external_url };
   if (kind === "office" || kind === "unsupported") return { kind };
+  if (kind === "video" && ctx.youtube_id) {
+    return { kind: "video", url: null, youtubeId: ctx.youtube_id };
+  }
   if (
     ctx.lifecycle_state !== "ready" ||
     !ctx.provider ||
