@@ -12,6 +12,7 @@ export const OPTIONAL_ENV_VARS = [
   "R2_BUCKET_NAME",
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
+  "ADMIN_EMAILS",
 ] as const;
 
 export type AppEnvVar = (typeof APP_ENV_VARS)[number];

@@ -147,14 +147,23 @@ Resource loại video có thể lưu `youtube_id` thay vì file mp4 trong storag
 Reason:
 Video là thứ ngốn dung lượng nhất (1 bài giảng 100–500 MB, vượt xa 1 GB free-tier Supabase). Trường học dùng kênh YouTube chuyên dụng của trường (unlisted) là miễn phí, không giới hạn, không cần thẻ. Upload tự động qua YouTube Data API v3 (OAuth 1 lần bằng account Google, `GOOGLE_CLIENT_ID`/`SECRET` server-side) đã triển khai ở Phase 32 phần 2.
 
-### ADR-023 — YouTube auto-upload & OAuth
+### ADR-023 — YouTube auto-upload & OAuth (kho video trung tâm)
 Status: Accepted (Phase 32)
 
 Decision:
-Người dùng kết nối tài khoản Google 1 lần qua OAuth 2.0 (scope `https://www.googleapis.com/auth/youtube.upload`, `access_type=offline`, `prompt=consent`). Refresh token lưu server-side trong bảng `google_oauth` (1 dòng duy nhất `id=1`, RLS bật và không có policy nào — chỉ service role đọc/ghi). Nút "Đăng lên YouTube" trên trang chi tiết video sẽ: kiểm tra quyền sở hữu → tải file qua signed URL (≤50 MB) → upload resumable lên YouTube (chế độ unlisted) → gán `youtube_id`, giữ nguyên file gốc trong storage.
+**Mô hình kho video trung tâm:** account Google của admin (`ADMIN_EMAILS`) là nơi lưu video của **toàn web**. Admin kết nối 1 lần (OAuth 2.0, scope `https://www.googleapis.com/auth/youtube.upload`, `access_type=offline`, `prompt=consent`); refresh token lưu server-side trong bảng `google_oauth` (1 dòng `id=1`, RLS không policy — chỉ service role). Mọi user sở hữu video đều bấm "Đăng lên kênh TBZ School (unlisted)" → server: kiểm tra quyền → tải file qua signed URL (≤50 MB) → upload resumable → gán `youtube_id`, giữ file gốc. Tiêu đề video: `[<họ tên user> | TBZ School | <original_filename>]` (≤100 ký tự). **Không dùng playlist** vì YouTube giới hạn ~200 playlist/kênh. Chỉ admin được kết nối/ngắt kết nối tài khoản trung tâm; người khác bị chặn ở API lẫn UI.
 
 Reason:
-Không dùng kênh trường chuyên dụng nữa — user dùng account Google cá nhân (kênh cá nhân). Token tuyệt đối không đưa vào client; `google_oauth` không có policy RLS nào nên anon/authenticated không thể đọc được refresh token ngay cả khi lỡ query. Consent screen ở chế độ Testing khiến refresh token hết hạn sau 7 ngày — cần *Publish* app trong OAuth consent để token vĩnh viễn. Scope chỉ `youtube.upload` (nhạy cảm thấp) nên publish được mà không cần review Google.
+User dùng 1 account Google cá nhân làm "ổ cứng" cho toàn web — đơn giản, miễn phí, không giới hạn dung lượng. Video unlisted nên chỉ ai có link tài liệu trong app mới xem được; tổ chức thật nằm ở cây workspace→collection→lesson (mỗi tài liệu 1 link). Playlist bỏ vì không phản ánh được cây phân cấp (playlist phẳng) và chạm trần 200/kênh khi user đông. Token tuyệt đối không vào client; `google_oauth` không có policy RLS nào. Consent screen ở chế độ Testing khiến refresh token hết hạn sau 7 ngày — cần *Publish* app. Scope `youtube.upload` nhạy cảm thấp → publish được không cần review.
+
+### ADR-024 — Đăng nhập bằng Google
+Status: Accepted (Phase 32)
+
+Decision:
+Thêm nút "Đăng nhập bằng Google" ở trang đăng nhập/đăng ký dùng Supabase Auth OAuth provider (Google) — cùng OAuth client Web application với "Kết nối Google", thêm redirect URI `https://<ref>.supabase.co/auth/v1/callback`. Trigger `handle_new_user` điền `full_name` từ `raw_user_meta_data` (Google) khi tạo profile. Không tự viết OAuth login — dùng Supabase provider cho an toàn và đồng bộ session.
+
+Reason:
+Người dùng mới không cần tạo mật khẩu; họ tên lấy tự động từ Google. Giữ "Kết nối Google" (kho video) tách biệt: scope khác (`youtube.upload`), chỉ admin dùng; đăng nhập Google mọi user đều dùng. Tránh lộ scope nặng nề cho người dùng thường.
 
 ## ADR-015 — Product scope
 Status: Accepted

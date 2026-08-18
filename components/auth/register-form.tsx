@@ -3,12 +3,13 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signUpAction } from "@/lib/auth/actions";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function RegisterForm() {
+export function RegisterForm({ redirectTo }: { redirectTo?: string }) {
   const [state, formAction, pending] = useActionState(signUpAction, {});
 
   return (
@@ -25,6 +26,15 @@ export function RegisterForm() {
           <AlertDescription>{state.success}</AlertDescription>
         </Alert>
       )}
+
+      <div className="flex flex-col gap-2">
+        <GoogleSignInButton redirectTo={redirectTo} />
+        <div className="flex items-center gap-3 py-1 text-xs text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          hoặc
+          <span className="h-px flex-1 bg-border" />
+        </div>
+      </div>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="fullName">Họ tên</Label>

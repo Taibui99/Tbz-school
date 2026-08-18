@@ -13,7 +13,13 @@ export const metadata: Metadata = {
   description: "Tạo tài khoản TBZ School.",
 };
 
-export default function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirect?: string }>;
+}) {
+  const { redirect: redirectTo } = await searchParams;
+
   return (
     <Card>
       <CardHeader>
@@ -23,7 +29,7 @@ export default function RegisterPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <RegisterForm />
+        <RegisterForm redirectTo={redirectTo} />
       </CardContent>
     </Card>
   );

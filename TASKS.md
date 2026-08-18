@@ -426,7 +426,12 @@ Acceptance: CI passes from a clean checkout.
   - [x] `lib/youtube/actions.ts`: `publishToYoutubeAction` (owner check, resource video ready có file → tải qua signed URL → upload unlisted → gán `youtube_id`); `disconnectGoogleAction`
   - [x] UI: `youtube-panel.tsx` trên trang chi tiết video (kết nối / đăng lên YouTube) + thẻ kết nối trên `/ho-so`
   - [x] Tests youtube-client (+11), typecheck/lint/build OK; smoke `/ho-so` + detail video hiện panel đúng trạng thái
-  - [ ] Điền `GOOGLE_CLIENT_ID/SECRET` vào `.env.local` + Vercel, publish app trong OAuth consent (refresh token hết hạn sau 7 ngày ở chế độ Testing) → test upload video thật
+  - [x] **Mô hình kho video trung tâm** (ADR-023): account Google của admin = nơi lưu video toàn web; mọi user sở hữu video đều đăng được vào kênh trung tâm (unlisted)
+  - [x] Tiêu đề video trên YouTube: `[<họ tên user> | TBZ School | <original_filename>]` (`lib/youtube/title.ts`, cắt ≤100 ký tự) — **không dùng playlist** (giới hạn ~200 playlist/kênh)
+  - [x] Admin-only connect: `ADMIN_EMAILS` env + `isAdminUser()`; `/api/auth/google/start` + `/callback` chặn user thường; UI "Kết nối Google" chỉ hiện cho admin (`/ho-so`, `youtube-panel`)
+  - [x] **Đăng nhập bằng Google**: nút Google trên `/dang-nhap` + `/dang-ky` (Supabase OAuth provider); trigger `handle_new_user` lấy `full_name` từ metadata — migration `20260818000001_phase32_google_login.sql` đã push
+  - [x] Tests youtube-title (+5), isAdminUser, typecheck/lint/build OK; smoke: admin connect → Google consent, user thường → bị chặn, `/ho-so` card chỉ admin thấy
+  - [ ] Cấu hình Google Cloud + Supabase + Vercel (xem bước triển khai) → test upload video thật
 
 Definition of done:
 User can register → create workspace → create collection → create lesson → upload/import resource → store safely → open in browser → interact with supported formats → retain annotations/state → choose visibility → share/discover according to permissions → search → favorite → delete/restore → manage quota.

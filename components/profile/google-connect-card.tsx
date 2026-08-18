@@ -18,6 +18,11 @@ const NOTICES: Record<string, { title: string; message: string }> = {
     title: "Chưa cấu hình",
     message: "Google OAuth chưa được cấu hình trên máy chủ.",
   },
+  forbidden: {
+    title: "Không được phép",
+    message:
+      "Chỉ quản trị viên mới được kết nối tài khoản kho video trung tâm.",
+  },
 };
 
 export function GoogleConnectCard({

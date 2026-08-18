@@ -11,7 +11,9 @@ import {
 import {
   clearGoogleConnection,
   getGoogleConnection,
+  isAdminUser,
 } from "@/lib/youtube/store";
+import { buildYoutubeVideoTitle } from "@/lib/youtube/title";
 import { getStorageProvider, isSupportedProvider } from "@/lib/storage";
 
 export async function publishToYoutubeAction(
@@ -30,7 +32,7 @@ export async function publishToYoutubeAction(
   const { data: resource } = await supabase
     .from("resources")
     .select(
-      "id, owner_id, type, title, description, lifecycle_state, provider, storage_key, mime, youtube_id, workspace_id, lesson_id, lessons!inner(collection_id)",
+      "id, owner_id, type, title, description, lifecycle_state, provider, storage_key, mime, youtube_id, original_filename, workspace_id, lesson_id, lessons!inner(collection_id)",
     )
     .eq("id", resourceId)
     .maybeSingle();
@@ -69,6 +71,18 @@ export async function publishToYoutubeAction(
   try {
     const accessToken = await getAccessToken(connection.refreshToken);
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const videoTitle = buildYoutubeVideoTitle({
+      fullName: profile?.full_name,
+      originalFilename: resource.original_filename,
+      fallbackTitle: resource.title,
+    });
+
     const provider = getStorageProvider(resource.provider);
     const readUrl = await provider.getSignedReadUrl(resource.storage_key, {
       expiresInSeconds: 300,
@@ -81,7 +95,7 @@ export async function publishToYoutubeAction(
 
     const videoId = await uploadVideoToYouTube({
       accessToken,
-      title: resource.title,
+      title: videoTitle,
       description: resource.description ?? "",
       mime: resource.mime ?? "video/mp4",
       data,
@@ -119,6 +133,7 @@ export async function disconnectGoogleAction(): Promise<void> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return;
+  if (!isAdminUser(user)) return;
 
   await clearGoogleConnection();
   revalidatePath("/", "layout");

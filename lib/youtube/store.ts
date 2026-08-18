@@ -6,6 +6,18 @@ export interface GoogleConnection {
   refreshToken: string | null;
 }
 
+export function isAdminUser(user: {
+  email?: string | null;
+} | null): boolean {
+  if (!user?.email) return false;
+  const adminList = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (adminList.length === 0) return false;
+  return adminList.includes(user.email.toLowerCase());
+}
+
 export async function getGoogleConnection(): Promise<GoogleConnection> {
   const supabase = createAdminClient();
   const { data } = await supabase

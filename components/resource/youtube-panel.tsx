@@ -15,12 +15,14 @@ export function YoutubePanel({
   connectedEmail,
   hasFile,
   alreadyPublished,
+  isAdmin,
 }: {
   resourceId: string;
   connected: boolean;
   connectedEmail: string | null;
   hasFile: boolean;
   alreadyPublished: boolean;
+  isAdmin: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     publishToYoutubeAction,
@@ -48,30 +50,38 @@ export function YoutubePanel({
         Đăng lên YouTube
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Đưa bài giảng lên YouTube (chế độ unlisted) để phát mượt mà không tốn
-        dung lượng lưu trữ của TBZ School.
+        Đưa bài giảng lên kênh TBZ School (unlisted) để phát mượt mà không tốn
+        dung lượng lưu trữ.
       </p>
 
       {!connected ? (
-        <div className="mt-3">
-          <Button render={<a href="/api/auth/google/start" />}>
-            Kết nối Google
-          </Button>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Kết nối 1 lần bằng tài khoản Google quản lý kênh. Mọi video sẽ được
-            đăng lên kênh đó (unlisted).
+        isAdmin ? (
+          <div className="mt-3">
+            <Button render={<a href="/api/auth/google/start" />}>
+              Kết nối Google
+            </Button>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Kết nối 1 lần bằng tài khoản Google quản lý kho video trung tâm.
+              Mọi video của hệ thống sẽ được đăng vào kênh đó (unlisted).
+            </p>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Kho video trung tâm chưa được kết nối. Vui lòng quay lại sau.
           </p>
-        </div>
+        )
       ) : hasFile ? (
         <>
           <form action={formAction} className="mt-3 flex flex-wrap items-center gap-3">
             <input type="hidden" name="resourceId" value={resourceId} />
             <Button type="submit" disabled={pending}>
               <Play aria-hidden="true" />
-              {pending ? "Đang đăng lên YouTube..." : "Đăng lên YouTube (unlisted)"}
+              {pending
+                ? "Đang đăng lên kênh TBZ School..."
+                : "Đăng lên kênh TBZ School (unlisted)"}
             </Button>
             <span className="text-xs text-muted-foreground">
-              Kênh: {connectedEmail ?? "Tài khoản Google"}
+              Kho trung tâm: {connectedEmail ?? "Tài khoản Google"}
             </span>
           </form>
           {state.error && (

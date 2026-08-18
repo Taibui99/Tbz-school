@@ -10,7 +10,7 @@ import {
 import { ProfileForm } from "@/components/profile/profile-form";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { GoogleConnectCard } from "@/components/profile/google-connect-card";
-import { getGoogleConnection } from "@/lib/youtube/store";
+import { getGoogleConnection, isAdminUser } from "@/lib/youtube/store";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -34,7 +34,8 @@ export default async function ProfilePage({
 
   const sp = await searchParams;
   const googleNotice = typeof sp.google === "string" ? sp.google : null;
-  const googleConnection = await getGoogleConnection();
+  const userIsAdmin = isAdminUser(user);
+  const googleConnection = userIsAdmin ? await getGoogleConnection() : null;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -87,21 +88,24 @@ export default async function ProfilePage({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Đăng video lên YouTube</CardTitle>
-            <CardDescription>
-              Kết nối tài khoản Google để đăng bài giảng lên YouTube (unlisted).
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <GoogleConnectCard
-              connected={googleConnection.connected}
-              email={googleConnection.email}
-              notice={googleNotice}
-            />
-          </CardContent>
-        </Card>
+        {userIsAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Đăng video lên YouTube</CardTitle>
+              <CardDescription>
+                Kết nối tài khoản Google quản lý kho video trung tâm của TBZ
+                School.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <GoogleConnectCard
+                connected={googleConnection?.connected ?? false}
+                email={googleConnection?.email ?? null}
+                notice={googleNotice}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
