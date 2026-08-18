@@ -1,11 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { MonitorPlay, Play } from "lucide-react";
-import {
-  disconnectGoogleAction,
-  publishToYoutubeAction,
-} from "@/lib/youtube/actions";
+import { publishToYoutubeAction } from "@/lib/youtube/actions";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -15,14 +13,12 @@ export function YoutubePanel({
   connectedEmail,
   hasFile,
   alreadyPublished,
-  isAdmin,
 }: {
   resourceId: string;
   connected: boolean;
   connectedEmail: string | null;
   hasFile: boolean;
   alreadyPublished: boolean;
-  isAdmin: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     publishToYoutubeAction,
@@ -55,21 +51,16 @@ export function YoutubePanel({
       </p>
 
       {!connected ? (
-        isAdmin ? (
-          <div className="mt-3">
-            <Button render={<a href="/api/auth/google/start" />}>
-              Kết nối Google
-            </Button>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Kết nối 1 lần bằng tài khoản Google quản lý kho video trung tâm.
-              Mọi video của hệ thống sẽ được đăng vào kênh đó (unlisted).
-            </p>
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Kho video trung tâm chưa được kết nối. Vui lòng quay lại sau.
-          </p>
-        )
+        <p className="mt-3 text-sm text-muted-foreground">
+          Kho video trung tâm chưa được kết nối. Quản trị viên kết nối tại{" "}
+          <Link
+            href="/ho-so"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            trang cá nhân
+          </Link>
+          .
+        </p>
       ) : hasFile ? (
         <>
           <form action={formAction} className="mt-3 flex flex-wrap items-center gap-3">
@@ -101,14 +92,6 @@ export function YoutubePanel({
         <p className="mt-3 text-sm text-muted-foreground">
           Video cần có tệp mp4 để đăng lên YouTube.
         </p>
-      )}
-
-      {connected && (
-        <form action={disconnectGoogleAction} className="mt-3">
-          <Button variant="ghost" size="sm" type="submit">
-            Ngắt kết nối Google
-          </Button>
-        </form>
       )}
     </section>
   );

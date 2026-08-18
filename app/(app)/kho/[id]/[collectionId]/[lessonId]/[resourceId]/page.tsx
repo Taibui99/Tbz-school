@@ -22,7 +22,7 @@ import { StaleUploadCleaner } from "@/components/upload/stale-upload-cleaner";
 import { SharePanel } from "@/components/resource/share-panel";
 import { VersionsPanel } from "@/components/resource/versions-panel";
 import { getShareInfo } from "@/lib/resource/public";
-import { getGoogleConnection, isAdminUser } from "@/lib/youtube/store";
+import { getGoogleConnection } from "@/lib/youtube/store";
 import { YoutubePanel } from "@/components/resource/youtube-panel";
 import { Button } from "@/components/ui/button";
 
@@ -234,7 +234,6 @@ export default async function ResourceDetailPage({
             !!resource.storage_key
           }
           alreadyPublished={!!resource.youtube_id}
-          isAdmin={isAdminUser(user)}
         />
       )}
 
