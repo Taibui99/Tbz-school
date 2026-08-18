@@ -10,6 +10,8 @@ export const OPTIONAL_ENV_VARS = [
   "R2_ACCESS_KEY_ID",
   "R2_SECRET_ACCESS_KEY",
   "R2_BUCKET_NAME",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
 ] as const;
 
 export type AppEnvVar = (typeof APP_ENV_VARS)[number];

@@ -419,7 +419,14 @@ Acceptance: CI passes from a clean checkout.
 - [x] Giảm quota lưu trữ/user 1 GB → 250 MB (ADR-018, ADR-022) vì Supabase free chỉ 1 GB tổng
 - [x] Tests: youtubeIdFromUrl (+11), quota 250MB; typecheck/lint/build OK
 - [x] Smoke: tạo video resource youtube_id → detail page render iframe YouTube
-- [ ] Upload tự động qua YouTube Data API v3 (OAuth account trường, `GOOGLE_CLIENT_ID/SECRET`) — chờ account + creds
+- [ ] Upload tự động qua YouTube Data API v3 (OAuth account Google, `GOOGLE_CLIENT_ID/SECRET`) — chờ creds OAuth từ Google Cloud Console
+  - [x] Migration `20260817000002_phase32_youtube_upload.sql`: bảng `google_oauth` (refresh token, RLS không policy) — đã push prod
+  - [x] `lib/youtube/client.ts`: consent URL (scope `youtube.upload`, offline, prompt=consent), exchange/refresh token, upload resumable → videoId
+  - [x] API `/api/auth/google/start` + `/api/auth/google/callback` (upsert `google_oauth`, redirect `/ho-so?google=connected`)
+  - [x] `lib/youtube/actions.ts`: `publishToYoutubeAction` (owner check, resource video ready có file → tải qua signed URL → upload unlisted → gán `youtube_id`); `disconnectGoogleAction`
+  - [x] UI: `youtube-panel.tsx` trên trang chi tiết video (kết nối / đăng lên YouTube) + thẻ kết nối trên `/ho-so`
+  - [x] Tests youtube-client (+11), typecheck/lint/build OK; smoke `/ho-so` + detail video hiện panel đúng trạng thái
+  - [ ] Điền `GOOGLE_CLIENT_ID/SECRET` vào `.env.local` + Vercel, publish app trong OAuth consent (refresh token hết hạn sau 7 ngày ở chế độ Testing) → test upload video thật
 
 Definition of done:
 User can register → create workspace → create collection → create lesson → upload/import resource → store safely → open in browser → interact with supported formats → retain annotations/state → choose visibility → share/discover according to permissions → search → favorite → delete/restore → manage quota.

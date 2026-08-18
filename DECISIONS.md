@@ -145,7 +145,16 @@ Decision:
 Resource loại video có thể lưu `youtube_id` thay vì file mp4 trong storage. Khi có `youtube_id`, viewer hiển thị **YouTube embed** (`youtube-nocookie.com/embed`) — không tốn dung lượng lưu trữ, không tính egress. Video mp4 nội bộ nhỏ vẫn dùng đường cũ (Supabase/R2).
 
 Reason:
-Video là thứ ngốn dung lượng nhất (1 bài giảng 100–500 MB, vượt xa 1 GB free-tier Supabase). Trường học dùng kênh YouTube chuyên dụng của trường (unlisted) là miễn phí, không giới hạn, không cần thẻ. Phase sau sẽ thêm upload tự động qua YouTube Data API v3 (OAuth 1 lần bằng account trường, `GOOGLE_CLIENT_ID`/`SECRET` server-side).
+Video là thứ ngốn dung lượng nhất (1 bài giảng 100–500 MB, vượt xa 1 GB free-tier Supabase). Trường học dùng kênh YouTube chuyên dụng của trường (unlisted) là miễn phí, không giới hạn, không cần thẻ. Upload tự động qua YouTube Data API v3 (OAuth 1 lần bằng account Google, `GOOGLE_CLIENT_ID`/`SECRET` server-side) đã triển khai ở Phase 32 phần 2.
+
+### ADR-023 — YouTube auto-upload & OAuth
+Status: Accepted (Phase 32)
+
+Decision:
+Người dùng kết nối tài khoản Google 1 lần qua OAuth 2.0 (scope `https://www.googleapis.com/auth/youtube.upload`, `access_type=offline`, `prompt=consent`). Refresh token lưu server-side trong bảng `google_oauth` (1 dòng duy nhất `id=1`, RLS bật và không có policy nào — chỉ service role đọc/ghi). Nút "Đăng lên YouTube" trên trang chi tiết video sẽ: kiểm tra quyền sở hữu → tải file qua signed URL (≤50 MB) → upload resumable lên YouTube (chế độ unlisted) → gán `youtube_id`, giữ nguyên file gốc trong storage.
+
+Reason:
+Không dùng kênh trường chuyên dụng nữa — user dùng account Google cá nhân (kênh cá nhân). Token tuyệt đối không đưa vào client; `google_oauth` không có policy RLS nào nên anon/authenticated không thể đọc được refresh token ngay cả khi lỡ query. Consent screen ở chế độ Testing khiến refresh token hết hạn sau 7 ngày — cần *Publish* app trong OAuth consent để token vĩnh viễn. Scope chỉ `youtube.upload` (nhạy cảm thấp) nên publish được mà không cần review Google.
 
 ## ADR-015 — Product scope
 Status: Accepted

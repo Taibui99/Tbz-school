@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/card";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { GoogleConnectCard } from "@/components/profile/google-connect-card";
+import { getGoogleConnection } from "@/lib/youtube/store";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -16,7 +18,11 @@ export const metadata: Metadata = {
   description: "Quản lý thông tin tài khoản TBZ School.",
 };
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -25,6 +31,10 @@ export default async function ProfilePage() {
   if (!user) {
     redirect("/dang-nhap");
   }
+
+  const sp = await searchParams;
+  const googleNotice = typeof sp.google === "string" ? sp.google : null;
+  const googleConnection = await getGoogleConnection();
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -73,6 +83,22 @@ export default async function ProfilePage() {
             <ProfileForm.ProfileInfo
               email={user.email ?? ""}
               fullName={profile?.full_name ?? ""}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Đăng video lên YouTube</CardTitle>
+            <CardDescription>
+              Kết nối tài khoản Google để đăng bài giảng lên YouTube (unlisted).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GoogleConnectCard
+              connected={googleConnection.connected}
+              email={googleConnection.email}
+              notice={googleNotice}
             />
           </CardContent>
         </Card>

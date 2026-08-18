@@ -22,6 +22,8 @@ import { StaleUploadCleaner } from "@/components/upload/stale-upload-cleaner";
 import { SharePanel } from "@/components/resource/share-panel";
 import { VersionsPanel } from "@/components/resource/versions-panel";
 import { getShareInfo } from "@/lib/resource/public";
+import { getGoogleConnection } from "@/lib/youtube/store";
+import { YoutubePanel } from "@/components/resource/youtube-panel";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -146,6 +148,9 @@ export default async function ResourceDetailPage({
 
   const shareInfo = await getShareInfo(supabase, resource.id);
 
+  const googleConnection =
+    resource.type === "video" ? await getGoogleConnection() : null;
+
   const downloadReasonLabel: Record<string, string> = {
     external: "Tài liệu ngoài không tải được qua TBZ School.",
     "not-ready": "Tài liệu chưa sẵn sàng để tải.",
@@ -217,6 +222,20 @@ export default async function ResourceDetailPage({
           downloadUrl={downloadUrl}
         />
       </section>
+
+      {resource.type === "video" && (
+        <YoutubePanel
+          resourceId={resource.id}
+          connected={googleConnection?.connected ?? false}
+          connectedEmail={googleConnection?.email ?? null}
+          hasFile={
+            resource.lifecycle_state === "ready" &&
+            !!resource.provider &&
+            !!resource.storage_key
+          }
+          alreadyPublished={!!resource.youtube_id}
+        />
+      )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-4">
