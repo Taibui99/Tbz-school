@@ -13,12 +13,14 @@ export function YoutubePanel({
   connectedEmail,
   hasFile,
   alreadyPublished,
+  isOwner,
 }: {
   resourceId: string;
   connected: boolean;
   connectedEmail: string | null;
   hasFile: boolean;
   alreadyPublished: boolean;
+  isOwner: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     publishToYoutubeAction,
@@ -60,6 +62,10 @@ export function YoutubePanel({
             trang cá nhân
           </Link>
           .
+        </p>
+      ) : !isOwner ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Chỉ chủ sở hữu tài liệu mới đăng video lên kho trung tâm.
         </p>
       ) : hasFile ? (
         <>
