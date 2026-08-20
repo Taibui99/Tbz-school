@@ -42,6 +42,18 @@ describe("evaluateDownload", () => {
     ).toEqual({ allowed: false, reason: "no-file" });
   });
 
+  it("blocks youtube-backed videos", () => {
+    expect(
+      evaluateDownload({ ...file, type: "video", youtubeId: "abc123xyz09" }),
+    ).toEqual({ allowed: false, reason: "external" });
+  });
+
+  it("allows file resources when youtubeId is absent", () => {
+    expect(evaluateDownload({ ...file, youtubeId: undefined })).toEqual({
+      allowed: true,
+    });
+  });
+
   it("blocks deleted resources", () => {
     expect(
       evaluateDownload({ ...file, deletedAt: "2026-08-15T00:00:00Z" }),

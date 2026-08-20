@@ -6,6 +6,7 @@ import {
   extensionOf,
   isSupportedExtension,
   isUploadSessionStale,
+  mimeFromFileName,
   resourceTypeFromFileName,
   validateUploadFile,
 } from "@/lib/upload/validate";
@@ -52,6 +53,20 @@ describe("isSupportedExtension", () => {
   });
 });
 
+describe("mimeFromFileName", () => {
+  it("ánh xạ pdf → application/pdf", () => {
+    expect(mimeFromFileName("a.pdf")).toBe("application/pdf");
+  });
+
+  it("ánh xạ mp4 → video/mp4", () => {
+    expect(mimeFromFileName("bai.mp4")).toBe("video/mp4");
+  });
+
+  it("mặc định octet-stream cho loại lạ", () => {
+    expect(mimeFromFileName("a.bin")).toBe("application/octet-stream");
+  });
+});
+
 describe("validateUploadFile", () => {
   it("hợp lệ với pdf nhỏ", () => {
     expect(
@@ -81,6 +96,23 @@ describe("validateUploadFile", () => {
   it("báo kích thước không hợp lệ (0)", () => {
     expect(validateUploadFile({ fileName: "a.pdf", sizeBytes: 0 }).sizeBytes)
       .toContain("không hợp lệ");
+  });
+
+  it("dùng maxSizeBytes tùy chỉnh khi được cung cấp", () => {
+    expect(
+      validateUploadFile(
+        { fileName: "bai.mp4", sizeBytes: 3 * 1024 * 1024 * 1024 },
+        { maxSizeBytes: Number.POSITIVE_INFINITY },
+      ),
+    ).toEqual({});
+  });
+
+  it("áp giới hạn tùy chỉnh nếu nhỏ hơn mặc định", () => {
+    const errors = validateUploadFile(
+      { fileName: "a.pdf", sizeBytes: 1024 * 1024 * 2 },
+      { maxSizeBytes: 1024 * 1024 },
+    );
+    expect(errors.sizeBytes).toContain("quá lớn");
   });
 });
 

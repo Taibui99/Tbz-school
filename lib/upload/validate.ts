@@ -35,6 +35,35 @@ const EXTENSION_TO_TYPE: Record<string, ResourceType> = {
 
 const SUPPORTED_EXTENSIONS = Object.keys(EXTENSION_TO_TYPE);
 
+const EXTENSION_TO_MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+};
+
+export function mimeFromFileName(fileName: string): string {
+  const ext = extensionOf(fileName);
+  return EXTENSION_TO_MIME[ext] ?? "application/octet-stream";
+}
+
 export function extensionOf(fileName: string): string {
   const dot = fileName.lastIndexOf(".");
   if (dot <= 0 || dot === fileName.length - 1) return "";
@@ -55,7 +84,11 @@ export interface UploadFileInput {
   sizeBytes: number;
 }
 
-export function validateUploadFile(input: UploadFileInput): Record<string, string> {
+export function validateUploadFile(
+  input: UploadFileInput,
+  options?: { maxSizeBytes?: number },
+): Record<string, string> {
+  const maxSizeBytes = options?.maxSizeBytes ?? MAX_FILE_SIZE_BYTES;
   const errors: Record<string, string> = {};
 
   if (!input.fileName.trim()) {
@@ -74,8 +107,8 @@ export function validateUploadFile(input: UploadFileInput): Record<string, strin
 
   if (!Number.isFinite(input.sizeBytes) || input.sizeBytes <= 0) {
     errors.sizeBytes = "Kích thước tệp không hợp lệ.";
-  } else if (input.sizeBytes > MAX_FILE_SIZE_BYTES) {
-    errors.sizeBytes = `Tệp quá lớn (tối đa ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} MB).`;
+  } else if (input.sizeBytes > maxSizeBytes) {
+    errors.sizeBytes = `Tệp quá lớn (tối đa ${Math.round(maxSizeBytes / 1024 / 1024)} MB).`;
   }
 
   return errors;

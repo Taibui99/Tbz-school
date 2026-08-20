@@ -97,9 +97,17 @@ export interface YoutubeUploadInput {
   data: ArrayBuffer;
 }
 
-export async function uploadVideoToYouTube(
-  input: YoutubeUploadInput,
-): Promise<string> {
+export interface InitiateVideoUploadInput {
+  accessToken: string;
+  title: string;
+  description: string;
+  mime: string;
+  sizeBytes: number;
+}
+
+export async function initiateResumableVideoUpload(
+  input: InitiateVideoUploadInput,
+): Promise<{ uploadUrl: string }> {
   const metadata = {
     snippet: {
       title: input.title.slice(0, 100),
@@ -116,7 +124,7 @@ export async function uploadVideoToYouTube(
         Authorization: `Bearer ${input.accessToken}`,
         "Content-Type": "application/json; charset=UTF-8",
         "X-Upload-Content-Type": input.mime,
-        "X-Upload-Content-Length": String(input.data.byteLength),
+        "X-Upload-Content-Length": String(input.sizeBytes),
       },
       body: JSON.stringify(metadata),
     },
@@ -131,8 +139,21 @@ export async function uploadVideoToYouTube(
   if (!location) {
     throw new YoutubeError("YouTube không trả về địa chỉ upload.");
   }
+  return { uploadUrl: location };
+}
 
-  const upload = await fetch(location, {
+export async function uploadVideoToYouTube(
+  input: YoutubeUploadInput,
+): Promise<string> {
+  const { uploadUrl } = await initiateResumableVideoUpload({
+    accessToken: input.accessToken,
+    title: input.title,
+    description: input.description,
+    mime: input.mime,
+    sizeBytes: input.data.byteLength,
+  });
+
+  const upload = await fetch(uploadUrl, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${input.accessToken}`,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { MonitorPlay } from "lucide-react";
 import { disconnectGoogleAction } from "@/lib/youtube/actions";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ const NOTICES: Record<string, { title: string; message: string }> = {
   },
 };
 
+const DESTRUCTIVE_NOTICES = new Set(["error"]);
+
 export function GoogleConnectCard({
   connected,
   email,
@@ -36,10 +39,21 @@ export function GoogleConnectCard({
 }) {
   const info = notice ? NOTICES[notice] : null;
 
+  useEffect(() => {
+    if (!notice) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("google")) {
+      url.searchParams.delete("google");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [notice]);
+
   return (
     <div className="flex flex-col gap-3">
       {info && (
-        <Alert variant={notice === "connected" ? "default" : "destructive"}>
+        <Alert
+          variant={notice && DESTRUCTIVE_NOTICES.has(notice) ? "destructive" : "default"}
+        >
           <AlertTitle>{info.title}</AlertTitle>
           <AlertDescription>{info.message}</AlertDescription>
         </Alert>

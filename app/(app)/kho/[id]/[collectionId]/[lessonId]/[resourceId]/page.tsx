@@ -124,6 +124,7 @@ export default async function ResourceDetailPage({
     provider: resource.provider,
     storageKey: resource.storage_key,
     externalUrl: resource.external_url,
+    youtubeId: resource.youtube_id,
   });
 
   const favorite = (resource.favorites?.length ?? 0) > 0;
@@ -296,7 +297,7 @@ export default async function ResourceDetailPage({
             !resource.external_url &&
             resource.type !== "url" && (
               <div className="mt-4">
-                <UploadFileButton resourceId={resource.id} />
+                <UploadFileButton resourceId={resource.id} resourceType={resource.type} />
               </div>
             )}
           {resource.external_url && (

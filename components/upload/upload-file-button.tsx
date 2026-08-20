@@ -33,14 +33,18 @@ async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
 export function UploadFileButton({
   resourceId,
   mode = "initial",
+  resourceType,
 }: {
   resourceId: string;
   mode?: "initial" | "version";
+  resourceType?: string;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
   const fileRef = useRef<File | null>(null);
+
+  const isVideo = resourceType === "video";
 
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [message, setMessage] = useState("");
@@ -57,7 +61,7 @@ export function UploadFileButton({
     setMessage("");
     setProgress(0);
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
+    if (!isVideo && file.size > MAX_FILE_SIZE_BYTES) {
       setStatus("error");
       setMessage(
         `Tệp quá lớn (tối đa ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} MB).`,
@@ -67,7 +71,12 @@ export function UploadFileButton({
 
     setStatus("creating");
 
-    let session: { uploadUrl?: string; key?: string; error?: string };
+    let session: {
+      uploadUrl?: string;
+      key?: string;
+      video?: boolean;
+      error?: string;
+    };
     try {
       const formData = new FormData();
       formData.set("resourceId", resourceId);
@@ -89,9 +98,11 @@ export function UploadFileButton({
       return;
     }
 
+    const isYoutubeUpload = session.video === true;
+
     setStatus("uploading");
-    const ok = await putWithProgress(session.uploadUrl, file);
-    if (!ok) {
+    const putResult = await putWithProgress(session.uploadUrl, file);
+    if (!putResult.ok) {
       setStatus("error");
       setMessage("Tải lên thất bại — hãy kiểm tra kết nối và thử lại.");
       return;
@@ -99,13 +110,32 @@ export function UploadFileButton({
 
     setStatus("verifying");
     try {
+      let videoId: string | undefined;
+      if (isYoutubeUpload) {
+        try {
+          const parsed = JSON.parse(putResult.body || "{}");
+          videoId = parsed?.id;
+        } catch {
+          videoId = undefined;
+        }
+        if (!videoId) {
+          setStatus("error");
+          setMessage("Không nhận được video ID từ YouTube.");
+          return;
+        }
+      }
+
       const sha256 = await sha256Hex(await file.arrayBuffer());
       const finalForm = new FormData();
       finalForm.set("resourceId", resourceId);
       finalForm.set("key", session.key);
       finalForm.set("sizeBytes", String(file.size));
-      finalForm.set("sha256", sha256);
       finalForm.set("mime", file.type || "");
+      if (isYoutubeUpload) {
+        if (videoId) finalForm.set("videoId", videoId);
+      } else {
+        finalForm.set("sha256", sha256);
+      }
 
       const result =
         mode === "version"
@@ -120,7 +150,11 @@ export function UploadFileButton({
       }
       setStatus("done");
       setMessage(
-        mode === "version" ? "Đã tải phiên bản mới." : "Đã tải tệp lên.",
+        mode === "version"
+          ? "Đã tải phiên bản mới."
+          : isYoutubeUpload
+            ? "Video đã được đăng lên kênh TBZ School (unlisted)."
+            : "Đã tải tệp lên.",
       );
       router.refresh();
     } catch {
@@ -132,7 +166,7 @@ export function UploadFileButton({
   function putWithProgress(
     url: string,
     file: File,
-  ): Promise<boolean> {
+  ): Promise<{ ok: boolean; body: string }> {
     return new Promise((resolve) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", url);
@@ -145,9 +179,13 @@ export function UploadFileButton({
           setProgress(Math.round((event.loaded / event.total) * 100));
         }
       };
-      xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300);
-      xhr.onerror = () => resolve(false);
-      xhr.onabort = () => resolve(false);
+      xhr.onload = () =>
+        resolve({
+          ok: xhr.status >= 200 && xhr.status < 300,
+          body: xhr.responseText,
+        });
+      xhr.onerror = () => resolve({ ok: false, body: "" });
+      xhr.onabort = () => resolve({ ok: false, body: "" });
       xhrRef.current = xhr;
       xhr.send(file);
     });
@@ -230,7 +268,9 @@ export function UploadFileButton({
             {mode === "version" ? "Tải phiên bản mới" : "Tải tệp lên"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            Tối đa {Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} MB mỗi tệp.
+            {isVideo
+              ? "Video được đăng trực tiếp lên kênh TBZ School (unlisted) — không giới hạn dung lượng."
+              : `Tối đa ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} MB mỗi tệp.`}
           </p>
         </div>
       )}

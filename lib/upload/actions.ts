@@ -7,16 +7,25 @@ import {
   validateUploadFile,
   extensionOf,
   isUploadSessionStale,
+  mimeFromFileName,
   MAX_USER_QUOTA_BYTES,
   MAX_USER_QUOTA_LABEL,
 } from "@/lib/upload/validate";
 import { getActiveStorageProvider, isSupportedProvider } from "@/lib/storage";
 import { StorageError } from "@/lib/storage/types";
+import { getAccessToken, initiateResumableVideoUpload } from "@/lib/youtube/client";
+import { getGoogleConnection } from "@/lib/youtube/store";
+import { buildYoutubeVideoTitle } from "@/lib/youtube/title";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
+type OwnedResource = NonNullable<
+  Awaited<ReturnType<typeof loadOwnedResource>>
+>;
+
 const UPLOAD_URL_EXPIRES_SECONDS = 60 * 15;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
+const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{5,64}$/;
 
 async function requireUser(
   supabase: SupabaseClient,
@@ -35,7 +44,7 @@ async function loadOwnedResource(
   const { data } = await supabase
     .from("resources")
     .select(
-      "id, owner_id, type, lifecycle_state, provider, storage_key, updated_at, deleted_at, workspace_id, lesson_id, lessons!inner(collection_id)",
+      "id, owner_id, type, title, description, lifecycle_state, provider, storage_key, updated_at, deleted_at, workspace_id, lesson_id, lessons!inner(collection_id)",
     )
     .eq("id", resourceId)
     .maybeSingle();
@@ -88,14 +97,10 @@ function makeStorageKey(userId: string, resourceId: string, fileName: string) {
 
 export async function createUploadSessionAction(
   formData: FormData,
-): Promise<{ uploadUrl?: string; key?: string; error?: string }> {
+): Promise<{ uploadUrl?: string; key?: string; video?: boolean; error?: string }> {
   const resourceId = String(formData.get("resourceId") ?? "");
   const fileName = String(formData.get("fileName") ?? "");
   const sizeBytes = Number(formData.get("sizeBytes") ?? NaN);
-
-  const fieldErrors = validateUploadFile({ fileName, sizeBytes });
-  const fieldError = Object.values(fieldErrors)[0];
-  if (fieldError) return { error: fieldError };
 
   const supabase = await createClient();
   const userId = await requireUser(supabase);
@@ -108,6 +113,24 @@ export async function createUploadSessionAction(
   }
   if (resource.lifecycle_state !== "draft" && resource.lifecycle_state !== "failed") {
     return { error: "Tài liệu đã có tệp — không thể tải thêm." };
+  }
+
+  const isVideo = resource.type === "video";
+  const fieldErrors = validateUploadFile(
+    { fileName, sizeBytes },
+    { maxSizeBytes: isVideo ? Number.POSITIVE_INFINITY : undefined },
+  );
+  const fieldError = Object.values(fieldErrors)[0];
+  if (fieldError) return { error: fieldError };
+
+  if (isVideo) {
+    return createYoutubeUploadSession({
+      supabase,
+      userId,
+      resource,
+      fileName,
+      sizeBytes,
+    });
   }
 
   const usedBytes = await sumUserUsage(supabase, userId);
@@ -143,6 +166,83 @@ export async function createUploadSessionAction(
   return { uploadUrl, key };
 }
 
+async function createYoutubeUploadSession({
+  supabase,
+  userId,
+  resource,
+  fileName,
+  sizeBytes,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  resource: OwnedResource;
+  fileName: string;
+  sizeBytes: number;
+}): Promise<{ uploadUrl?: string; key?: string; video?: boolean; error?: string }> {
+  const connection = await getGoogleConnection();
+  if (!connection.connected || !connection.refreshToken) {
+    return {
+      error:
+        "Kho video trung tâm chưa được kết nối. Quản trị viên kết nối tại trang cá nhân (/ho-so).",
+    };
+  }
+
+  let accessToken: string;
+  try {
+    accessToken = await getAccessToken(connection.refreshToken);
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : "Không lấy được quyền upload lên YouTube.";
+    return { error: message };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const title = buildYoutubeVideoTitle({
+    fullName: profile?.full_name,
+    originalFilename: fileName,
+    fallbackTitle: resource.title,
+  });
+
+  let uploadUrl: string;
+  try {
+    ({ uploadUrl } = await initiateResumableVideoUpload({
+      accessToken,
+      title,
+      description: resource.description ?? "",
+      mime: mimeFromFileName(fileName),
+      sizeBytes,
+    }));
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message
+        ? error.message
+        : "Không khởi tạo được phiên đăng video lên YouTube.";
+    return { error: message };
+  }
+
+  const { error: updateError } = await supabase
+    .from("resources")
+    .update({
+      lifecycle_state: "uploading",
+      provider: "youtube",
+      storage_key: null,
+      original_filename: fileName.trim(),
+      size_bytes: sizeBytes,
+      mime: mimeFromFileName(fileName),
+    })
+    .eq("id", resource.id);
+  if (updateError) return { error: updateError.message };
+
+  return { uploadUrl, key: "youtube", video: true };
+}
+
 // ---------- Finalize upload ----------
 
 export async function finalizeUploadAction(
@@ -164,6 +264,11 @@ export async function finalizeUploadAction(
 
   const resource = await loadOwnedResource(supabase, userId, resourceId);
   if (!resource) return { error: "Tài liệu không tồn tại." };
+
+  if (resource.provider === "youtube") {
+    return finalizeYoutubeUpload({ supabase, resource, resourceId, formData });
+  }
+
   if (resource.lifecycle_state !== "uploading") {
     return { error: "Không có phiên tải lên đang chạy." };
   }
@@ -229,6 +334,44 @@ export async function finalizeUploadAction(
     const code = error instanceof StorageError ? error.code : "unknown";
     return { error: `Không xác minh được tệp (${code}).` };
   }
+}
+
+async function finalizeYoutubeUpload({
+  supabase,
+  resource,
+  resourceId,
+  formData,
+}: {
+  supabase: SupabaseClient;
+  resource: OwnedResource;
+  resourceId: string;
+  formData: FormData;
+}): Promise<{ success?: string; error?: string }> {
+  const videoId = String(formData.get("videoId") ?? "");
+  const sizeBytes = Number(formData.get("sizeBytes") ?? NaN);
+  const mime = String(formData.get("mime") ?? "") || null;
+
+  if (!YOUTUBE_VIDEO_ID_PATTERN.test(videoId)) {
+    return { error: "Video ID không hợp lệ." };
+  }
+  if (resource.lifecycle_state !== "uploading") {
+    return { error: "Không có phiên tải lên đang chạy." };
+  }
+
+  const { error: updateError } = await supabase
+    .from("resources")
+    .update({
+      lifecycle_state: "ready",
+      youtube_id: videoId,
+      mime,
+      size_bytes: sizeBytes,
+      content_hash: null,
+    })
+    .eq("id", resourceId);
+  if (updateError) return { error: updateError.message };
+
+  revalidateResourcePaths(resource);
+  return { success: "Video đã được đăng lên kênh TBZ School (unlisted)." };
 }
 
 // ---------- Cancel / cleanup ----------

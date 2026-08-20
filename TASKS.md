@@ -431,6 +431,9 @@ Acceptance: CI passes from a clean checkout.
   - [x] Admin-only connect: `ADMIN_EMAILS` env + `isAdminUser()`; `/api/auth/google/start` + `/callback` chặn user thường; UI "Kết nối Google" chỉ hiện cho admin (`/ho-so`, `youtube-panel`)
   - [x] **Đăng nhập bằng Google**: nút Google trên `/dang-nhap` + `/dang-ky` (Supabase OAuth provider); trigger `handle_new_user` lấy `full_name` từ metadata — migration `20260818000001_phase32_google_login.sql` đã push
   - [x] Tests youtube-title (+5), isAdminUser, typecheck/lint/build OK; smoke: admin connect → Google consent, user thường → bị chặn, `/ho-so` card chỉ admin thấy
+  - [x] **Upload video → thẳng YouTube** (ADR-023 cập nhật): `createUploadSessionAction` branch theo `resource.type === "video"` → tạo resumable session YouTube (`initiateResumableVideoUpload`) không qua R2, không giới hạn dung lượng (`maxSizeBytes: Infinity`), không tính quota/user; client PUT thẳng tới session URL, đọc `videoId` từ phản hồi, `finalizeUploadAction` branch `provider === "youtube"` gán `youtube_id` + `ready`
+  - [x] `mimeFromFileName()` (`lib/upload/validate.ts`); `validateUploadFile` nhận `maxSizeBytes` tùy chọn; `evaluateDownload` chặn tải file gốc video YouTube (`youtubeId` → reason `external`); `/ho-so` tự xóa param `?google=` sau khi hiện notice + alert `forbidden` không còn destructive
+  - [x] Tests: youtube-client `initiateResumableVideoUpload` (+3), upload-validate `maxSizeBytes`/`mimeFromFileName` (+3), resource-download `youtubeId` (+2); typecheck/lint/test (139) /build OK
   - [ ] Cấu hình Google Cloud + Supabase + Vercel (xem bước triển khai) → test upload video thật
 
 Definition of done:

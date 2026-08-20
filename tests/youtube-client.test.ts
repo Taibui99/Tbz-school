@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildConsentUrl,
   getAccessToken,
+  initiateResumableVideoUpload,
   isGoogleConfigured,
   uploadVideoToYouTube,
   YOUTUBE_SCOPE,
@@ -93,6 +94,65 @@ describe("getAccessToken", () => {
     await expect(getAccessToken("rt-1")).rejects.toThrow(
       /Làm mới access token thất bại/,
     );
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("initiateResumableVideoUpload", () => {
+  it("trả về upload url từ header location", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => "https://upload.example/session-1" },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await initiateResumableVideoUpload({
+      accessToken: "tok",
+      title: "Bài giảng",
+      description: "Nội dung",
+      mime: "video/mp4",
+      sizeBytes: 1234,
+    });
+    expect(result.uploadUrl).toBe("https://upload.example/session-1");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("uploadType=resumable");
+    const headers = init?.headers as Record<string, string>;
+    expect(headers["Authorization"]).toBe("Bearer tok");
+    expect(headers["X-Upload-Content-Type"]).toBe("video/mp4");
+    expect(headers["X-Upload-Content-Length"]).toBe("1234");
+    vi.unstubAllGlobals();
+  });
+
+  it("throw khi init upload thất bại", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve({ ok: false, status: 401, text: async () => "no" }),
+    );
+    await expect(
+      initiateResumableVideoUpload({
+        accessToken: "tok",
+        title: "T",
+        description: "",
+        mime: "video/mp4",
+        sizeBytes: 1,
+      }),
+    ).rejects.toThrow(/Khởi tạo upload YouTube thất bại/);
+    vi.unstubAllGlobals();
+  });
+
+  it("throw khi thiếu location header", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve({ ok: true, headers: { get: () => null } }),
+    );
+    await expect(
+      initiateResumableVideoUpload({
+        accessToken: "tok",
+        title: "T",
+        description: "",
+        mime: "video/mp4",
+        sizeBytes: 1,
+      }),
+    ).rejects.toThrow(/không trả về địa chỉ upload/);
     vi.unstubAllGlobals();
   });
 });
