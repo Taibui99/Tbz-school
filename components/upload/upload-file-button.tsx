@@ -75,6 +75,7 @@ export function UploadFileButton({
       uploadUrl?: string;
       key?: string;
       video?: boolean;
+      mime?: string;
       error?: string;
     };
     try {
@@ -99,12 +100,24 @@ export function UploadFileButton({
     }
 
     const isYoutubeUpload = session.video === true;
+    const uploadContentType =
+      isYoutubeUpload && session.mime
+        ? session.mime
+        : file.type || "application/octet-stream";
 
     setStatus("uploading");
-    const putResult = await putWithProgress(session.uploadUrl, file);
+    const putResult = await putWithProgress(
+      session.uploadUrl,
+      file,
+      uploadContentType,
+    );
     if (!putResult.ok) {
       setStatus("error");
-      setMessage("Tải lên thất bại — hãy kiểm tra kết nối và thử lại.");
+      setMessage(
+        putResult.status > 0
+          ? `Tải lên thất bại (HTTP ${putResult.status}).`
+          : "Tải lên thất bại — hãy kiểm tra kết nối và thử lại.",
+      );
       return;
     }
 
@@ -166,14 +179,12 @@ export function UploadFileButton({
   function putWithProgress(
     url: string,
     file: File,
-  ): Promise<{ ok: boolean; body: string }> {
+    contentType: string,
+  ): Promise<{ ok: boolean; status: number; body: string }> {
     return new Promise((resolve) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", url);
-      xhr.setRequestHeader(
-        "Content-Type",
-        file.type || "application/octet-stream",
-      );
+      xhr.setRequestHeader("Content-Type", contentType);
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           setProgress(Math.round((event.loaded / event.total) * 100));
@@ -182,10 +193,11 @@ export function UploadFileButton({
       xhr.onload = () =>
         resolve({
           ok: xhr.status >= 200 && xhr.status < 300,
+          status: xhr.status,
           body: xhr.responseText,
         });
-      xhr.onerror = () => resolve({ ok: false, body: "" });
-      xhr.onabort = () => resolve({ ok: false, body: "" });
+      xhr.onerror = () => resolve({ ok: false, status: 0, body: "" });
+      xhr.onabort = () => resolve({ ok: false, status: 0, body: "" });
       xhrRef.current = xhr;
       xhr.send(file);
     });

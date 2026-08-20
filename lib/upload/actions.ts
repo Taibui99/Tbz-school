@@ -178,7 +178,7 @@ async function createYoutubeUploadSession({
   resource: OwnedResource;
   fileName: string;
   sizeBytes: number;
-}): Promise<{ uploadUrl?: string; key?: string; video?: boolean; error?: string }> {
+}): Promise<{ uploadUrl?: string; key?: string; video?: boolean; mime?: string; error?: string }> {
   const connection = await getGoogleConnection();
   if (!connection.connected || !connection.refreshToken) {
     return {
@@ -210,13 +210,15 @@ async function createYoutubeUploadSession({
     fallbackTitle: resource.title,
   });
 
+  const mime = mimeFromFileName(fileName);
+
   let uploadUrl: string;
   try {
     ({ uploadUrl } = await initiateResumableVideoUpload({
       accessToken,
       title,
       description: resource.description ?? "",
-      mime: mimeFromFileName(fileName),
+      mime,
       sizeBytes,
     }));
   } catch (error) {
@@ -235,12 +237,12 @@ async function createYoutubeUploadSession({
       storage_key: null,
       original_filename: fileName.trim(),
       size_bytes: sizeBytes,
-      mime: mimeFromFileName(fileName),
+      mime,
     })
     .eq("id", resource.id);
   if (updateError) return { error: updateError.message };
 
-  return { uploadUrl, key: "youtube", video: true };
+  return { uploadUrl, key: "youtube", video: true, mime };
 }
 
 // ---------- Finalize upload ----------
