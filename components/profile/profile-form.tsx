@@ -184,7 +184,4 @@ function ProfileInfo({
   );
 }
 
-export const ProfileForm = {
-  AvatarUpload,
-  ProfileInfo,
-};
+export { AvatarUpload, ProfileInfo };

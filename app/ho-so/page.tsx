@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ProfileForm } from "@/components/profile/profile-form";
+import { AvatarUpload, ProfileInfo } from "@/components/profile/profile-form";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { GoogleConnectCard } from "@/components/profile/google-connect-card";
 import { getGoogleConnection, isAdminUser } from "@/lib/youtube/store";
@@ -66,10 +66,7 @@ export default async function ProfilePage({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ProfileForm.AvatarUpload
-              userId={user.id}
-              avatarUrl={avatarUrl}
-            />
+            <AvatarUpload userId={user.id} avatarUrl={avatarUrl} />
           </CardContent>
         </Card>
 
@@ -81,10 +78,7 @@ export default async function ProfilePage({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ProfileForm.ProfileInfo
-              email={user.email ?? ""}
-              fullName={profile?.full_name ?? ""}
-            />
+            <ProfileInfo email={user.email ?? ""} fullName={profile?.full_name ?? ""} />
           </CardContent>
         </Card>
 
