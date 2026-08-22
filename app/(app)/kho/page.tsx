@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/layout/page-header";
 import { KhoExplorer } from "@/components/explorer/kho-explorer";
 import type {
   ExplorerCollection,
@@ -121,13 +122,10 @@ export default async function KhoPage({
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Kho của tôi</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tổ chức tài liệu như trình quản lý tệp — chọn thư mục, kéo thả tệp để
-          tải lên.
-        </p>
-      </div>
+      <PageHeader
+        title="Kho của tôi"
+        description="Tổ chức tài liệu như trình quản lý tệp — chọn thư mục, kéo thả tệp để tải lên."
+      />
       <KhoExplorer workspaces={tree} selection={selection} />
     </div>
   );

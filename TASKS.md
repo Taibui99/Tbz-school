@@ -449,3 +449,10 @@ User can register → create workspace → create collection → create lesson �
 - [x] Loading skeletons cho `(app)` + `kho`, animation fade/slide cho panel và thẻ; viền drop-highlight khi kéo tệp
 - [x] Sửa lỗi trang bộ sưu tập gọi nhầm action xóa/đổi tên của workspace; sửa copy cũ "giai đoạn tiếp theo"
 - [x] Tests: titleFromFileName/resourceTypeFromFileName (+7 mới); typecheck/lint/test (148)/build OK
+
+## PHASE 34 — UI overhaul "Aurora Glass" (toàn bộ app)
+- [x] Design tokens mới: palette tím-hồng (oklch 290/350), glass-panel/text-gradient/bg-brand-gradient, shadow 2 tầng, radius 1rem; font Be Vietnam Pro (body) + Baloo 2 (heading)
+- [x] BackdropGlow: 4 aurora blobs trôi + dot-grid; landing bento kiểu Apple (thẻ 2x2 mini file-tree), spotlight chuột, border-beam CTA, shimmer text, floating chips, scroll reveal (IntersectionObserver, no-JS safe)
+- [x] Header/footer floating glass pill; Button gradient pill + glow; Card glass bo 2xl
+- [x] Auth layout 2 cột; PageHeader dùng chung cho các trang app; loading skeleton/error/404 đồng bộ
+- [x] tsc/lint/test(148)/build OK

@@ -240,7 +240,7 @@ export default async function ResourceDetailPage({
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="glass-panel rounded-2xl p-4">
           <h2 className="flex items-center gap-2 text-sm font-medium">
             <Database aria-hidden="true" className="size-4 text-muted-foreground" />
             Thông tin tệp
@@ -275,7 +275,7 @@ export default async function ResourceDetailPage({
           )}
         </section>
 
-        <section className="rounded-xl border border-border bg-card p-4">
+        <section className="glass-panel rounded-2xl p-4">
           <h2 className="flex items-center gap-2 text-sm font-medium">
             <Download aria-hidden="true" className="size-4 text-muted-foreground" />
             Tải về
@@ -320,7 +320,7 @@ export default async function ResourceDetailPage({
         </section>
       </div>
 
-      <section className="mt-6 rounded-xl border border-border bg-card p-4">
+      <section className="mt-6 glass-panel rounded-2xl p-4">
         <h2 className="flex items-center gap-2 text-sm font-medium">
           <ExternalLinkIcon aria-hidden="true" className="size-4 text-muted-foreground" />
           Thẻ (tags)
@@ -334,7 +334,7 @@ export default async function ResourceDetailPage({
         </div>
       </section>
 
-      <section className="mt-6 rounded-xl border border-border bg-card p-4">
+      <section className="mt-6 glass-panel rounded-2xl p-4">
         <h2 className="flex items-center gap-2 text-sm font-medium">
           <Download aria-hidden="true" className="size-4 text-muted-foreground" />
           Phiên bản tệp

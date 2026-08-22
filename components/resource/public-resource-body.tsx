@@ -106,7 +106,7 @@ export function PublicResourceBody({
         />
       </section>
 
-      <section className="mt-6 rounded-xl border border-border bg-card p-4">
+      <section className="mt-6 glass-panel rounded-2xl p-4">
         <h2 className="text-sm font-medium">Tải về</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           {downloadUrl
@@ -130,7 +130,7 @@ export function PublicResourceBody({
         )}
       </section>
 
-      <section className="mt-6 rounded-xl border border-border bg-card p-4">
+      <section className="mt-6 glass-panel rounded-2xl p-4">
         <h2 className="text-sm font-medium">Báo cáo tài liệu</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Thấy nội dung không phù hợp? Báo cáo để đội ngũ TBZ School xem xét.

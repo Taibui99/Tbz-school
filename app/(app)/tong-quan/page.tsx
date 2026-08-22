@@ -6,10 +6,11 @@ import {
   Clock3,
   FileText,
   FolderOpen,
-  LayoutDashboard,
   Star,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { PageHeader } from "@/components/layout/page-header";
+import { SpotlightCard } from "@/components/layout/spotlight-card";
 import { TypeIcon } from "@/components/resource/type-icon";
 import { ContinueViewing } from "@/components/resource/continue-viewing";
 import { createClient } from "@/lib/supabase/server";
@@ -175,30 +176,26 @@ export default async function DashboardPage() {
       <Breadcrumbs items={[{ label: "Tổng quan" }]} />
 
       <div className="mt-4">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-          <LayoutDashboard aria-hidden="true" className="size-6" />
-          Tổng quan
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tài liệu gần đây, mục yêu thích và hoạt động của bạn.
-        </p>
+        <PageHeader
+          title="Tổng quan"
+          description="Tài liệu gần đây, mục yêu thích và hoạt động của bạn."
+        />
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="-mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <div
+          <SpotlightCard
             key={stat.label}
-            className="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            className="glass-panel flex items-center gap-3.5 rounded-2xl p-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
           >
-            <stat.icon
-              aria-hidden="true"
-              className="size-5 shrink-0 text-primary"
-            />
+            <span className="bg-brand-gradient flex size-10 shrink-0 items-center justify-center rounded-xl text-white">
+              <stat.icon aria-hidden="true" className="size-5" />
+            </span>
             <div>
-              <p className="text-2xl font-semibold leading-none">{stat.value}</p>
+              <p className="font-heading text-2xl font-bold leading-none">{stat.value}</p>
               <p className="mt-1 text-xs text-muted-foreground">{stat.label}</p>
             </div>
-          </div>
+          </SpotlightCard>
         ))}
       </div>
 
@@ -228,7 +225,7 @@ export default async function DashboardPage() {
                 <li key={item.id}>
                   <Link
                     href={href}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40"
+                    className="flex items-center gap-3 glass-panel rounded-2xl px-4 py-3 transition-colors hover:border-primary/40"
                   >
                     <TypeIcon type={item.type} className="size-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">

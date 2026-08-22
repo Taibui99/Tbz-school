@@ -76,7 +76,7 @@ export function SharePanel({
   const shareUrl = token ? `${window.location.origin}/x/${token}` : null;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4">
+    <section className="glass-panel rounded-2xl p-4">
       <h2 className="flex items-center gap-2 text-sm font-medium">
         <Link2 aria-hidden="true" className="size-4 text-muted-foreground" />
         Chia sẻ

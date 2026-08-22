@@ -468,7 +468,7 @@ export function KhoExplorer({
   return (
     <div className="flex gap-6">
       <aside className="hidden w-72 shrink-0 md:block">
-        <div className="sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-xl border border-border bg-card p-2">
+        <div className="sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto glass-panel rounded-2xl p-2">
           <div className="flex items-center justify-between px-2 py-1.5">
             <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               Kho của tôi
@@ -1192,7 +1192,7 @@ function ContentPane({
       className={
         dragging
           ? "rounded-xl border border-dashed border-primary/60 bg-primary/5 ring-2 ring-primary/30 transition-colors"
-          : "rounded-xl border border-border bg-card transition-colors"
+          : "glass-panel rounded-2xl transition-colors"
       }
       onDragEnter={(event) => {
         if (!dropEnabled) return;

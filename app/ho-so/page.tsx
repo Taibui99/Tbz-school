@@ -11,6 +11,7 @@ import { AvatarUpload, ProfileInfo } from "@/components/profile/profile-form";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
 import { GoogleConnectCard } from "@/components/profile/google-connect-card";
 import { getGoogleConnection, isAdminUser } from "@/lib/youtube/store";
+import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -52,10 +53,10 @@ export default async function ProfilePage({
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Hồ sơ</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Quản lý thông tin cá nhân và ảnh đại diện của bạn.
-      </p>
+      <PageHeader
+        title="Hồ sơ"
+        description="Quản lý thông tin cá nhân và ảnh đại diện của bạn."
+      />
 
       <div className="mt-6 flex flex-col gap-6">
         <Card>

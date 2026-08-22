@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FolderTree, GraduationCap, Search } from "lucide-react";
 import { TypeIcon } from "@/components/resource/type-icon";
+import { PageHeader } from "@/components/layout/page-header";
 import { TYPE_LABELS } from "@/components/resource/resource-dialogs";
 import { getOwnersByIds } from "@/lib/resource/public";
 import { createClient } from "@/lib/supabase/server";
@@ -143,13 +144,16 @@ export default async function SearchPage({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Tìm kiếm</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Tìm trong tài liệu, bộ sưu tập, bài học và thẻ của bạn (và tài liệu
-        công khai).
-      </p>
+      <PageHeader
+        title="Tìm kiếm"
+        description="Tìm trong tài liệu, bộ sưu tập, bài học và thẻ của bạn (và tài liệu công khai)."
+      />
 
-      <form action="/tim-kiem" method="get" className="mt-6 flex flex-wrap items-end gap-2">
+      <form
+        action="/tim-kiem"
+        method="get"
+        className="glass-panel flex flex-wrap items-end gap-2 rounded-2xl p-4"
+      >
         <div className="min-w-0 flex-1">
           <Input
             name="q"

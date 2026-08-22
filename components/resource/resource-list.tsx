@@ -175,7 +175,7 @@ export function ResourceList({
   }) {
     const checked = selected.has(item.id);
     return (
-      <li className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+      <li className="flex items-center gap-3 glass-panel rounded-2xl p-3">
         <input
           type="checkbox"
           aria-label={`Chọn ${item.title}`}

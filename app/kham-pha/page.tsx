@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { TypeIcon } from "@/components/resource/type-icon";
+import { PageHeader } from "@/components/layout/page-header";
 import { TYPE_LABELS } from "@/components/resource/resource-dialogs";
 import { getOwnersByIds } from "@/lib/resource/public";
 import { createClient } from "@/lib/supabase/server";
@@ -100,15 +101,15 @@ export default async function ExplorePage({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight">Khám phá</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Tài liệu học tập công khai từ cộng đồng TBZ School.
-      </p>
+      <PageHeader
+        title="Khám phá"
+        description="Tài liệu học tập công khai từ cộng đồng TBZ School."
+      />
 
       <form
         action="/kham-pha"
         method="get"
-        className="mt-6 flex flex-wrap items-end gap-2"
+        className="glass-panel flex flex-wrap items-end gap-2 rounded-2xl p-4"
       >
         <div className="min-w-0 flex-1">
           <Input
@@ -122,7 +123,7 @@ export default async function ExplorePage({
         <select
           name="type"
           defaultValue={type ?? ""}
-          className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-9 rounded-xl border border-input bg-card/60 px-3 backdrop-blur text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <option value="">Mọi loại</option>
           {Object.entries(TYPE_LABELS).map(([value, label]) => (
@@ -134,7 +135,7 @@ export default async function ExplorePage({
         <select
           name="tag"
           defaultValue={tag ?? ""}
-          className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-9 rounded-xl border border-input bg-card/60 px-3 backdrop-blur text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <option value="">Mọi thẻ</option>
           {(allTags ?? []).map((t) => (
@@ -172,7 +173,7 @@ export default async function ExplorePage({
               <Link
                 key={row.id}
                 href={`/thu-vien/${row.id}`}
-                className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
+                className="group flex flex-col gap-3 glass-panel rounded-2xl p-5 transition-colors hover:border-primary/40"
               >
                 <div className="flex items-center gap-3">
                   <TypeIcon type={row.type} className="size-6 shrink-0" />

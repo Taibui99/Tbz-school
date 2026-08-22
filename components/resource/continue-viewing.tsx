@@ -82,7 +82,7 @@ export function ContinueViewing() {
           <li key={`${entry.kind}-${entry.resourceId}`}>
             <Link
               href={href}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:border-primary/40"
+              className="flex items-center gap-3 glass-panel rounded-2xl px-4 py-3 transition-colors hover:border-primary/40"
             >
               {entry.kind === "pdf" ? (
                 <BookOpen aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />

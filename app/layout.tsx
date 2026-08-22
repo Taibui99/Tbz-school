@@ -1,18 +1,26 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Baloo_2, Be_Vietnam_Pro, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { BackdropGlow } from "@/components/layout/backdrop-glow";
 
-const geistSans = Geist({
+const beVietnamPro = Be_Vietnam_Pro({
   variable: "--font-sans",
-  subsets: ["latin"],
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const baloo = Baloo_2({
+  variable: "--font-heading",
+  subsets: ["latin", "vietnamese"],
+  weight: ["500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -28,11 +36,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="vi"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${beVietnamPro.variable} ${geistMono.variable} ${baloo.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
+        <BackdropGlow />
         <SiteHeader />
-        <main className="flex-1">{children}</main>
+        <main className="relative flex-1">{children}</main>
         <SiteFooter />
       </body>
     </html>

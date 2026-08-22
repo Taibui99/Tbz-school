@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { TrashManager } from "@/components/trash/trash-manager";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata: Metadata = {
   title: "Thùng rác",
@@ -25,13 +25,10 @@ export default async function TrashPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10">
-      <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-        <Trash2 aria-hidden="true" className="size-6" />
-        Thùng rác
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Tài liệu đã xóa được giữ ở đây để khôi phục khi cần.
-      </p>
+      <PageHeader
+        title="Thùng rác"
+        description="Tài liệu đã xóa được giữ ở đây để khôi phục khi cần."
+      />
 
       <div className="mt-6">
         <TrashManager

@@ -98,7 +98,7 @@ export function AnnotationSection({
   return (
     <section className="mt-6">
       <h2 className="mb-2 text-sm font-medium">Ghi chú & đánh dấu</h2>
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="glass-panel rounded-2xl p-4">
         {!adding && (
           <Button type="button" size="sm" onClick={() => setAdding(true)}>
             <NotebookPen aria-hidden="true" />

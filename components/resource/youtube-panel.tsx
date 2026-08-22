@@ -29,7 +29,7 @@ export function YoutubePanel({
 
   if (alreadyPublished) {
     return (
-      <section className="mt-6 rounded-xl border border-border bg-card p-4">
+      <section className="mt-6 glass-panel rounded-2xl p-4">
         <h2 className="flex items-center gap-2 text-sm font-medium">
           <MonitorPlay aria-hidden="true" className="size-4 text-destructive" />
           YouTube
@@ -42,7 +42,7 @@ export function YoutubePanel({
   }
 
   return (
-    <section className="mt-6 rounded-xl border border-border bg-card p-4">
+    <section className="mt-6 glass-panel rounded-2xl p-4">
       <h2 className="flex items-center gap-2 text-sm font-medium">
         <MonitorPlay aria-hidden="true" className="size-4 text-destructive" />
         Đăng lên YouTube
