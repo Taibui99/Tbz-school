@@ -75,6 +75,16 @@ export function resourceTypeFromFileName(fileName: string): ResourceType | null 
   return EXTENSION_TO_TYPE[ext] ?? null;
 }
 
+export const MAX_RESOURCE_TITLE_LENGTH = 200;
+
+export function titleFromFileName(fileName: string): string {
+  const dot = fileName.lastIndexOf(".");
+  const base = dot > 0 ? fileName.slice(0, dot) : fileName;
+  const title = base.trim().replace(/\s+/g, " ");
+  if (!title) return "Tài liệu không tên";
+  return title.slice(0, MAX_RESOURCE_TITLE_LENGTH);
+}
+
 export function isSupportedExtension(ext: string): boolean {
   return SUPPORTED_EXTENSIONS.includes(ext.toLowerCase());
 }

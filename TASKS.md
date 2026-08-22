@@ -440,3 +440,12 @@ Acceptance: CI passes from a clean checkout.
 
 Definition of done:
 User can register → create workspace → create collection → create lesson → upload/import resource → store safely → open in browser → interact with supported formats → retain annotations/state → choose visibility → share/discover according to permissions → search → favorite → delete/restore → manage quota.
+
+## PHASE 33 — Kho Explorer (Drive-style UX) + fix YouTube CORS
+- [x] Fix upload YouTube: PUT resumable thành công nhưng thiếu `Access-Control-Allow-Origin` → client không đọc được `videoId`. Server query session URL (PUT rỗng + `Content-Range: bytes */size`) lấy videoId; client luôn gọi finalize kèm `uploadUrl` kể cả khi PUT bị chặn CORS
+- [x] `/kho` → explorer 2 khung kiểu Drive: cây workspace/bộ sưu tập/bài học bên trái, nội dung bên phải (breadcrumb, grid thư mục, danh sách tệp); URL state `?w=&c=&l=`
+- [x] Upload ưu tiên tệp: nút "Tải tệp lên" ở mọi cấp + kéo-thả nhiều tệp; server tự tạo resource nháp + tìm/tạo bộ sưu tập "Chung" / bài học "Tài liệu chung" nếu thả ngoài bài học; hàng đợi tải lên với tiến trình từng tệp
+- [x] Tạo/đổi tên/xóa inline (không modal), optimistic update + hoàn tác khi lỗi; route cũ `/kho/[id]/...` redirect về `/kho?w=...`
+- [x] Loading skeletons cho `(app)` + `kho`, animation fade/slide cho panel và thẻ; viền drop-highlight khi kéo tệp
+- [x] Sửa lỗi trang bộ sưu tập gọi nhầm action xóa/đổi tên của workspace; sửa copy cũ "giai đoạn tiếp theo"
+- [x] Tests: titleFromFileName/resourceTypeFromFileName (+7 mới); typecheck/lint/test (148)/build OK

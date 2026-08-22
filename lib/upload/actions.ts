@@ -8,6 +8,8 @@ import {
   extensionOf,
   isUploadSessionStale,
   mimeFromFileName,
+  resourceTypeFromFileName,
+  titleFromFileName,
   MAX_USER_QUOTA_BYTES,
   MAX_USER_QUOTA_LABEL,
 } from "@/lib/upload/validate";
@@ -95,9 +97,17 @@ function makeStorageKey(userId: string, resourceId: string, fileName: string) {
 
 // ---------- Create upload session ----------
 
+type UploadSessionResult = {
+  uploadUrl?: string;
+  key?: string;
+  video?: boolean;
+  mime?: string;
+  error?: string;
+};
+
 export async function createUploadSessionAction(
   formData: FormData,
-): Promise<{ uploadUrl?: string; key?: string; video?: boolean; error?: string }> {
+): Promise<UploadSessionResult> {
   const resourceId = String(formData.get("resourceId") ?? "");
   const fileName = String(formData.get("fileName") ?? "");
   const sizeBytes = Number(formData.get("sizeBytes") ?? NaN);
@@ -115,6 +125,16 @@ export async function createUploadSessionAction(
     return { error: "Tài liệu đã có tệp — không thể tải thêm." };
   }
 
+  return startUploadSession(supabase, userId, resource, fileName, sizeBytes);
+}
+
+async function startUploadSession(
+  supabase: SupabaseClient,
+  userId: string,
+  resource: { id: string; type: string; title: string; description: string | null },
+  fileName: string,
+  sizeBytes: number,
+): Promise<UploadSessionResult> {
   const isVideo = resource.type === "video";
   const fieldErrors = validateUploadFile(
     { fileName, sizeBytes },
@@ -139,7 +159,7 @@ export async function createUploadSessionAction(
   }
 
   const provider = getActiveStorageProvider();
-  const key = makeStorageKey(userId, resourceId, fileName);
+  const key = makeStorageKey(userId, resource.id, fileName);
 
   let uploadUrl: string;
   try {
@@ -160,10 +180,188 @@ export async function createUploadSessionAction(
       original_filename: fileName.trim(),
       size_bytes: sizeBytes,
     })
-    .eq("id", resourceId);
+    .eq("id", resource.id);
   if (updateError) return { error: updateError.message };
 
   return { uploadUrl, key };
+}
+
+const QUICK_COLLECTION_NAME = "Chung";
+const QUICK_LESSON_NAME = "Tài liệu chung";
+
+export async function quickUploadSessionAction(
+  formData: FormData,
+): Promise<
+  UploadSessionResult & {
+    resourceId?: string;
+    collectionId?: string;
+    lessonId?: string;
+  }
+> {
+  const workspaceId = String(formData.get("workspaceId") ?? "");
+  const inputCollectionId = String(formData.get("collectionId") ?? "");
+  const inputLessonId = String(formData.get("lessonId") ?? "");
+  const fileName = String(formData.get("fileName") ?? "");
+  const sizeBytes = Number(formData.get("sizeBytes") ?? NaN);
+
+  if (!workspaceId) return { error: "Thiếu workspace." };
+
+  const resourceType = resourceTypeFromFileName(fileName);
+  if (!resourceType || resourceType === "url") {
+    return {
+      error:
+        "Loại tệp không hỗ trợ — chỉ nhận pdf, doc(x), ppt(x), xls(x), ảnh, video, âm thanh, txt/md/csv.",
+    };
+  }
+
+  const supabase = await createClient();
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
+
+  // Xác định bài học đích — thả file ở cấp cao hơn sẽ tự dùng/tạo thư mục mặc định.
+  let targetCollectionId: string;
+  let targetLessonId: string;
+
+  if (inputLessonId && inputCollectionId) {
+    const { data: lesson } = await supabase
+      .from("lessons")
+      .select("id, collection_id, collections!inner(workspace_id)")
+      .eq("id", inputLessonId)
+      .eq("collections.workspace_id", workspaceId)
+      .maybeSingle();
+    if (!lesson) return { error: "Bài học không thuộc workspace này." };
+    targetCollectionId = lesson.collection_id;
+    targetLessonId = inputLessonId;
+  } else if (inputCollectionId) {
+    const { data: collection } = await supabase
+      .from("collections")
+      .select("id")
+      .eq("id", inputCollectionId)
+      .eq("workspace_id", workspaceId)
+      .maybeSingle();
+    if (!collection) return { error: "Bộ sưu tập không thuộc workspace này." };
+    targetCollectionId = inputCollectionId;
+
+    const lesson = await findOrCreateDefaultLesson(supabase, inputCollectionId);
+    if (typeof lesson !== "string") return lesson;
+    targetLessonId = lesson;
+  } else {
+    const collection = await findOrCreateDefaultCollection(supabase, workspaceId);
+    if (typeof collection !== "string") return collection;
+    targetCollectionId = collection;
+
+    const lesson = await findOrCreateDefaultLesson(supabase, collection);
+    if (typeof lesson !== "string") return lesson;
+    targetLessonId = lesson;
+  }
+
+  const { data: resourceRow, error: insertError } = await supabase
+    .from("resources")
+    .insert({
+      owner_id: userId,
+      workspace_id: workspaceId,
+      lesson_id: targetLessonId,
+      title: titleFromFileName(fileName),
+      description: null,
+      type: resourceType,
+      visibility: "private",
+      lifecycle_state: "draft",
+    })
+    .select("id")
+    .single();
+  if (insertError) return { error: insertError.message };
+
+  const session = await startUploadSession(
+    supabase,
+    userId,
+    {
+      id: resourceRow.id,
+      type: resourceType,
+      title: titleFromFileName(fileName),
+      description: null,
+    },
+    fileName,
+    sizeBytes,
+  );
+  if (session.error) return session;
+
+  revalidatePath("/kho");
+  return {
+    ...session,
+    resourceId: resourceRow.id,
+    collectionId: targetCollectionId,
+    lessonId: targetLessonId,
+  };
+}
+
+async function findOrCreateDefaultCollection(
+  supabase: SupabaseClient,
+  workspaceId: string,
+): Promise<string | { error: string }> {
+  const { data: existing } = await supabase
+    .from("collections")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("name", QUICK_COLLECTION_NAME)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return existing.id;
+
+  const { data: maxRow } = await supabase
+    .from("collections")
+    .select("position")
+    .eq("workspace_id", workspaceId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: created, error } = await supabase
+    .from("collections")
+    .insert({
+      workspace_id: workspaceId,
+      name: QUICK_COLLECTION_NAME,
+      description: "",
+      position: (maxRow?.position ?? -1) + 1,
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+  return created.id;
+}
+
+async function findOrCreateDefaultLesson(
+  supabase: SupabaseClient,
+  collectionId: string,
+): Promise<string | { error: string }> {
+  const { data: existing } = await supabase
+    .from("lessons")
+    .select("id")
+    .eq("collection_id", collectionId)
+    .eq("name", QUICK_LESSON_NAME)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return existing.id;
+
+  const { data: maxRow } = await supabase
+    .from("lessons")
+    .select("position")
+    .eq("collection_id", collectionId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: created, error } = await supabase
+    .from("lessons")
+    .insert({
+      collection_id: collectionId,
+      name: QUICK_LESSON_NAME,
+      description: "",
+      position: (maxRow?.position ?? -1) + 1,
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+  return created.id;
 }
 
 async function createYoutubeUploadSession({
@@ -175,10 +373,10 @@ async function createYoutubeUploadSession({
 }: {
   supabase: SupabaseClient;
   userId: string;
-  resource: OwnedResource;
+  resource: { id: string; title: string; description: string | null };
   fileName: string;
   sizeBytes: number;
-}): Promise<{ uploadUrl?: string; key?: string; video?: boolean; mime?: string; error?: string }> {
+}): Promise<UploadSessionResult> {
   const connection = await getGoogleConnection();
   if (!connection.connected || !connection.refreshToken) {
     return {
@@ -349,15 +547,27 @@ async function finalizeYoutubeUpload({
   resourceId: string;
   formData: FormData;
 }): Promise<{ success?: string; error?: string }> {
-  const videoId = String(formData.get("videoId") ?? "");
+  const uploadUrl = String(formData.get("uploadUrl") ?? "");
   const sizeBytes = Number(formData.get("sizeBytes") ?? NaN);
   const mime = String(formData.get("mime") ?? "") || null;
 
-  if (!YOUTUBE_VIDEO_ID_PATTERN.test(videoId)) {
-    return { error: "Video ID không hợp lệ." };
+  if (
+    !uploadUrl.startsWith(
+      "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable",
+    )
+  ) {
+    return { error: "Phiên tải lên không hợp lệ." };
   }
   if (resource.lifecycle_state !== "uploading") {
     return { error: "Không có phiên tải lên đang chạy." };
+  }
+
+  const videoId = await fetchYoutubeVideoId(uploadUrl, sizeBytes);
+  if (!videoId) {
+    await resetResourceAfterFailure(supabase, resourceId);
+    return {
+      error: "Video chưa được tải xong lên YouTube — hãy thử lại.",
+    };
   }
 
   const { error: updateError } = await supabase
@@ -374,6 +584,26 @@ async function finalizeYoutubeUpload({
 
   revalidateResourcePaths(resource);
   return { success: "Video đã được đăng lên kênh TBZ School (unlisted)." };
+}
+
+async function fetchYoutubeVideoId(
+  uploadUrl: string,
+  sizeBytes: number,
+): Promise<string | null> {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const res = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Range": `bytes */${sizeBytes}` },
+    });
+    if (res.status === 200) {
+      const data = await res.json().catch(() => null);
+      const id = typeof data?.id === "string" ? data.id : null;
+      if (id && YOUTUBE_VIDEO_ID_PATTERN.test(id)) return id;
+    }
+    if (res.status !== 308) break;
+    await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+  }
+  return null;
 }
 
 // ---------- Cancel / cleanup ----------

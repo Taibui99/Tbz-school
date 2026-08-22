@@ -14,21 +14,13 @@ import {
   finalizeVersionUploadAction,
 } from "@/lib/resource/version-actions";
 import { MAX_FILE_SIZE_BYTES } from "@/lib/upload/validate";
+import {
+  formatBytes,
+  putWithProgress,
+  sha256Hex,
+} from "@/lib/upload/client-upload";
 
 type UploadStatus = "idle" | "creating" | "uploading" | "verifying" | "done" | "error";
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 export function UploadFileButton({
   resourceId,
@@ -110,44 +102,32 @@ export function UploadFileButton({
       session.uploadUrl,
       file,
       uploadContentType,
+      setProgress,
     );
-    if (!putResult.ok) {
-      setStatus("error");
-      setMessage(
-        putResult.status > 0
-          ? `Tải lên thất bại (HTTP ${putResult.status}).`
-          : "Tải lên thất bại — hãy kiểm tra kết nối và thử lại.",
-      );
-      return;
-    }
 
     setStatus("verifying");
     try {
-      let videoId: string | undefined;
-      if (isYoutubeUpload) {
-        try {
-          const parsed = JSON.parse(putResult.body || "{}");
-          videoId = parsed?.id;
-        } catch {
-          videoId = undefined;
-        }
-        if (!videoId) {
-          setStatus("error");
-          setMessage("Không nhận được video ID từ YouTube.");
-          return;
-        }
-      }
-
-      const sha256 = await sha256Hex(await file.arrayBuffer());
       const finalForm = new FormData();
       finalForm.set("resourceId", resourceId);
       finalForm.set("key", session.key);
       finalForm.set("sizeBytes", String(file.size));
       finalForm.set("mime", file.type || "");
+
       if (isYoutubeUpload) {
-        if (videoId) finalForm.set("videoId", videoId);
+        // YouTube resumable: response của PUT bị CORS chặn ở trình duyệt dù
+        // upload đã thành công — server tự query session URL để lấy videoId.
+        finalForm.set("uploadUrl", session.uploadUrl);
       } else {
-        finalForm.set("sha256", sha256);
+        if (!putResult.ok) {
+          setStatus("error");
+          setMessage(
+            putResult.status > 0
+              ? `Tải lên thất bại (HTTP ${putResult.status}).`
+              : "Tải lên thất bại — hãy kiểm tra kết nối và thử lại.",
+          );
+          return;
+        }
+        finalForm.set("sha256", await sha256Hex(await file.arrayBuffer()));
       }
 
       const result =
@@ -174,33 +154,6 @@ export function UploadFileButton({
       setStatus("error");
       setMessage("Xác minh tệp thất bại — hãy thử lại.");
     }
-  }
-
-  function putWithProgress(
-    url: string,
-    file: File,
-    contentType: string,
-  ): Promise<{ ok: boolean; status: number; body: string }> {
-    return new Promise((resolve) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("PUT", url);
-      xhr.setRequestHeader("Content-Type", contentType);
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          setProgress(Math.round((event.loaded / event.total) * 100));
-        }
-      };
-      xhr.onload = () =>
-        resolve({
-          ok: xhr.status >= 200 && xhr.status < 300,
-          status: xhr.status,
-          body: xhr.responseText,
-        });
-      xhr.onerror = () => resolve({ ok: false, status: 0, body: "" });
-      xhr.onabort = () => resolve({ ok: false, status: 0, body: "" });
-      xhrRef.current = xhr;
-      xhr.send(file);
-    });
   }
 
   async function cancelUpload() {

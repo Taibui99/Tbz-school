@@ -1,77 +1,134 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FolderOpen, Library } from "lucide-react";
-import { Breadcrumbs } from "@/components/breadcrumbs";
-import { CreateWorkspaceDialog } from "@/components/workspace/workspace-dialogs";
 import { createClient } from "@/lib/supabase/server";
+import { KhoExplorer } from "@/components/explorer/kho-explorer";
+import type {
+  ExplorerCollection,
+  ExplorerFile,
+  ExplorerLesson,
+  ExplorerSelection,
+  ExplorerWorkspace,
+} from "@/components/explorer/types";
 
 export const metadata: Metadata = {
   title: "Kho của tôi",
-  description: "Quản lý workspaces của bạn trên TBZ School.",
+  description: "Quản lý tài liệu học tập của bạn trên TBZ School.",
 };
 
-export default async function WorkspacesPage() {
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseId(value: string | string[] | undefined): string | undefined {
+  if (typeof value !== "string" || !UUID_PATTERN.test(value)) return undefined;
+  return value;
+}
+
+export default async function KhoPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
   if (!user) redirect("/dang-nhap");
 
-  const { data: workspaces } = await supabase
-    .from("workspaces")
-    .select("id, name, description, created_at")
-    .order("created_at", { ascending: false });
+  const params = await searchParams;
+  const selection: ExplorerSelection = {
+    w: parseId(params.w),
+    c: parseId(params.c),
+    l: parseId(params.l),
+  };
+
+  const [workspacesResult, collectionsResult, lessonsResult, resourcesResult] =
+    await Promise.all([
+      supabase
+        .from("workspaces")
+        .select("id, name")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("collections")
+        .select("id, workspace_id, name")
+        .order("position", { ascending: true }),
+      supabase
+        .from("lessons")
+        .select("id, collection_id, name")
+        .order("position", { ascending: true }),
+      supabase
+        .from("resources")
+        .select(
+          "id, lesson_id, title, type, visibility, lifecycle_state, youtube_id, external_url",
+        )
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+    ]);
+
+  const tree: ExplorerWorkspace[] = (workspacesResult.data ?? []).map((ws) => ({
+    kind: "workspace",
+    id: ws.id,
+    name: ws.name,
+    collections: [],
+  }));
+  const workspaceById = new Map(tree.map((item) => [item.id, item]));
+
+  const collectionById = new Map<string, ExplorerCollection>();
+  for (const col of collectionsResult.data ?? []) {
+    const parent = workspaceById.get(col.workspace_id);
+    if (!parent) continue;
+    const node: ExplorerCollection = {
+      kind: "collection",
+      id: col.id,
+      workspaceId: parent.id,
+      name: col.name,
+      lessons: [],
+    };
+    parent.collections.push(node);
+    collectionById.set(col.id, node);
+  }
+
+  const lessonById = new Map<string, ExplorerLesson>();
+  for (const les of lessonsResult.data ?? []) {
+    const parent = collectionById.get(les.collection_id);
+    if (!parent) continue;
+    const node: ExplorerLesson = {
+      kind: "lesson",
+      id: les.id,
+      workspaceId: parent.workspaceId,
+      collectionId: parent.id,
+      name: les.name,
+      files: [],
+    };
+    parent.lessons.push(node);
+    lessonById.set(les.id, node);
+  }
+
+  for (const row of resourcesResult.data ?? []) {
+    if (!row.lesson_id) continue;
+    const parent = lessonById.get(row.lesson_id);
+    if (!parent) continue;
+    const file: ExplorerFile = {
+      id: row.id,
+      title: row.title,
+      type: row.type,
+      visibility: row.visibility,
+      lifecycleState: row.lifecycle_state,
+      youtubeId: row.youtube_id,
+      externalUrl: row.external_url,
+    };
+    parent.files.push(file);
+  }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <Breadcrumbs items={[{ label: "Kho của tôi" }]} />
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-            Kho của tôi
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Các workspace lưu trữ tài liệu học tập của bạn.
-          </p>
-        </div>
-        <CreateWorkspaceDialog />
+    <div className="mx-auto w-full max-w-7xl px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Kho của tôi</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Tổ chức tài liệu như trình quản lý tệp — chọn thư mục, kéo thả tệp để
+          tải lên.
+        </p>
       </div>
-
-      {!workspaces || workspaces.length === 0 ? (
-        <div className="mt-10 flex flex-col items-center gap-4 rounded-xl border border-dashed border-border py-16 text-center">
-          <Library className="size-10 text-muted-foreground" aria-hidden="true" />
-          <div>
-            <p className="font-medium">Chưa có workspace nào</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Tạo workspace đầu tiên để bắt đầu tổ chức tài liệu của bạn.
-            </p>
-          </div>
-          <CreateWorkspaceDialog />
-        </div>
-      ) : (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {workspaces.map((workspace) => (
-            <Link
-              key={workspace.id}
-              href={`/kho/${workspace.id}`}
-              className="group flex flex-col gap-3 rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
-            >
-              <div className="flex items-center gap-2">
-                <FolderOpen
-                  className="size-5 text-muted-foreground group-hover:text-primary"
-                  aria-hidden="true"
-                />
-                <span className="truncate font-medium">{workspace.name}</span>
-              </div>
-              <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">
-                {workspace.description || "Chưa có mô tả."}
-              </p>
-            </Link>
-          ))}
-        </div>
-      )}
+      <KhoExplorer workspaces={tree} selection={selection} />
     </div>
   );
 }

@@ -221,8 +221,8 @@ export function CreateResourceDialog({
         <DialogHeader>
           <DialogTitle>Thêm tài liệu</DialogTitle>
           <DialogDescription>
-            Tạo tài liệu mới trong bài học. Tải tệp lên sẽ có trong giai đoạn
-            tiếp theo — bạn có thể tạo liên kết ngoài ngay bây giờ.
+            Tạo tài liệu mới trong bài học — liên kết ngoài hoặc video YouTube.
+            Để tải tệp, dùng nút &quot;Tải tệp lên&quot; trong trang tài liệu.
           </DialogDescription>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4">

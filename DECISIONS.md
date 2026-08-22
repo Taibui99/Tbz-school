@@ -236,3 +236,21 @@ The pdf.js worker is loaded via `new URL("pdfjs-dist/build/pdf.worker.min.mjs", 
 
 Reason:
 Turbopack's `?url` asset import on the ESM worker bundle failed the build ("Export default doesn't exist in target module"). `new URL(..., import.meta.url)` compiles cleanly and keeps the worker self-hosted (no external CDN dependency). pdf.js v6 API differences handled: `render({ canvas })`, no `isEvalSupported`, no `PDFDocumentProxy.destroy`.
+
+## ADR-024 — Kho explorer 2 khung + upload ưu tiên tệp
+Status: Accepted
+
+Decision:
+`/kho` renders as a single two-pane explorer (tree left, content right) driven by query params (`?w=&c=&l=`). Old nested routes redirect. File uploads are the primary action at every level: dropping files on any level creates a draft resource and, when not inside a lesson, attaches it to a find-or-create default collection ("Chung") / lesson ("Tài liệu chung") server-side.
+
+Reason:
+The previous modal-driven flow was rigid and slow for bulk uploads; users think in files first. A single page also removes per-level loading waterfalls (one tree fetch per navigation instead of one per drill-down).
+
+## ADR-025 — YouTube resumable upload finalize qua session URL
+Status: Accepted
+
+Decision:
+For YouTube uploads the client passes its `uploadUrl` to `finalizeUploadAction` even when the browser cannot read the PUT response. The server queries the resumable session with an empty PUT (`Content-Range: bytes */size`) to recover the `videoId`.
+
+Reason:
+Google's PUT response lacks CORS headers, so browsers block reading it client-side even though the upload itself succeeds. Querying from the server avoids the browser restriction without proxying file bytes through the app server.
