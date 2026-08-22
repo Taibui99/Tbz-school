@@ -7,8 +7,11 @@ import {
   BookOpen,
   Check,
   ChevronRight,
+  Eye,
   Folder,
+  FolderInput,
   FolderOpen,
+  Info,
   Library,
   Loader2,
   MoreVertical,
@@ -20,6 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 import {
   Dialog,
   DialogContent,
@@ -32,8 +36,23 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator as DropdownSep,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  ExplorerMoveDialog,
+  FileInfoDialog,
+} from "@/components/explorer/dialogs";
+import { VISIBILITY_LABELS } from "@/components/resource/resource-dialogs";
 import { CreateWorkspaceDialog } from "@/components/workspace/workspace-dialogs";
 import {
   createCollectionNodeAction,
@@ -41,11 +60,18 @@ import {
   deleteCollectionNodeAction,
   deleteLessonNodeAction,
   deleteWorkspaceNodeAction,
+  moveCollectionNodeAction,
+  moveLessonNodeAction,
   renameCollectionNodeAction,
   renameLessonNodeAction,
+  renameResourceNodeAction,
   renameWorkspaceNodeAction,
+  setResourceVisibilityAction,
 } from "@/lib/explorer/actions";
-import { deleteResourceAction } from "@/lib/resource/actions";
+import {
+  bulkMoveResourceAction,
+  deleteResourceAction,
+} from "@/lib/resource/actions";
 import { finalizeUploadAction, quickUploadSessionAction } from "@/lib/upload/actions";
 import { formatBytes, putWithProgress, sha256Hex } from "@/lib/upload/client-upload";
 import { MAX_FILE_SIZE_BYTES, resourceTypeFromFileName } from "@/lib/upload/validate";
@@ -87,6 +113,31 @@ type DeleteTarget =
   | { kind: "lesson"; id: string; name: string; workspaceId: string }
   | { kind: "file"; id: string; name: string; workspaceId: string };
 
+type TreeDragItem =
+  | { kind: "collection"; id: string; workspaceId: string }
+  | { kind: "lesson"; id: string; workspaceId: string; collectionId: string };
+
+type MoveTarget =
+  | { mode: "collection"; id: string; currentW: string }
+  | { mode: "lesson"; id: string; currentC: string }
+  | {
+      mode: "file";
+      id: string;
+      currentW: string;
+      currentC: string;
+      currentL: string;
+    };
+
+type MenuItemDef = {
+  label: string;
+  icon?: React.ReactNode;
+  destructive?: boolean;
+  disabled?: boolean;
+  checked?: boolean;
+  onSelect?: () => void;
+  children?: MenuItemDef[];
+};
+
 let tempCounter = 0;
 
 export function KhoExplorer({
@@ -103,10 +154,16 @@ export function KhoExplorer({
     () => new Set(expandedIdsForSelection(selection)),
   );
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [infoFile, setInfoFile] = useState<ExplorerFile | null>(null);
+  const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
+  const [treeDrag, setTreeDrag] = useState<TreeDragItem | null>(null);
+  const [treeDropId, setTreeDropId] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [dragging, setDragging] = useState(false);
   const [, startTransition] = useTransition();
+  const pushToast = useToast();
 
   // Đồng bộ state local với dữ liệu mới từ server sau router.refresh()/điều hướng
   // (pattern "adjust state when props change" — setState trong render, không dùng effect).
@@ -131,6 +188,36 @@ export function KhoExplorer({
     },
     [router],
   );
+
+  // Ghi nhớ trạng thái mở/đóng các node trên cây giữa các phiên (localStorage).
+  // Đọc bất đồng bộ (setTimeout 0) để tránh setState đồng bộ trong effect.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const raw = window.localStorage.getItem("kho-expanded-ids");
+        if (!raw) return;
+        const ids: unknown = JSON.parse(raw);
+        if (!Array.isArray(ids)) return;
+        setExpanded((prev) => {
+          const next = new Set(prev);
+          for (const id of ids) {
+            if (typeof id === "string") next.add(id);
+          }
+          return next;
+        });
+      } catch {}
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "kho-expanded-ids",
+        JSON.stringify([...expanded]),
+      );
+    } catch {}
+  }, [expanded]);
 
   // ---------- Mutations ----------
 
@@ -199,6 +286,11 @@ export function KhoExplorer({
     if (result.error || !result.id) {
       removeTempNode(tempId);
       setRenamingId(null);
+      pushToast({
+        title: "Không tạo được thư mục",
+        description: result.error ?? undefined,
+        variant: "error",
+      });
       return;
     }
 
@@ -261,7 +353,15 @@ export function KhoExplorer({
           ? renameCollectionNodeAction
           : renameLessonNodeAction;
     const result = await action(formData);
-    if (result.error || !result.name) return;
+    if (result.error) {
+      pushToast({
+        title: "Đổi tên thất bại",
+        description: result.error,
+        variant: "error",
+      });
+      return;
+    }
+    if (!result.name) return;
 
     setTree((prev) =>
       prev.map((ws) =>
@@ -302,7 +402,16 @@ export function KhoExplorer({
           : target.kind === "lesson"
             ? deleteLessonNodeAction
             : deleteResourceAction;
-    await action(formData);
+    const result = await action(formData);
+    if (result.error) {
+      pushToast({
+        title: "Xóa thất bại",
+        description: result.error,
+        variant: "error",
+      });
+    } else {
+      pushToast({ title: `Đã xóa ${deleteTargetLabel(target)}` });
+    }
 
     if (target.kind === "file") {
       setTree((prev) =>
@@ -386,6 +495,355 @@ export function KhoExplorer({
     startTransition(() => {
       router.replace(`/kho${selectionToQuery(next)}`, { scroll: false });
     });
+  }
+
+  // ---------- File ops (rename / visibility / info) ----------
+
+  function mapFiles(
+    prev: ExplorerWorkspace[],
+    fileId: string,
+    patch: (file: ExplorerFile) => ExplorerFile,
+  ): ExplorerWorkspace[] {
+    return prev.map((ws) => ({
+      ...ws,
+      collections: ws.collections.map((col) => ({
+        ...col,
+        lessons: col.lessons.map((les) => ({
+          ...les,
+          files: les.files.map((file) =>
+            file.id === fileId ? patch(file) : file,
+          ),
+        })),
+      })),
+    }));
+  }
+
+  async function handleRenameFile(fileId: string, title: string) {
+    setRenamingFileId(null);
+    const snapshot = tree;
+    setTree((prev) => mapFiles(prev, fileId, (file) => ({ ...file, title })));
+
+    const formData = new FormData();
+    formData.set("id", fileId);
+    formData.set("name", title);
+    const result = await renameResourceNodeAction(formData);
+    if (result.error) {
+      setTree(snapshot);
+      pushToast({
+        title: "Đổi tên thất bại",
+        description: result.error,
+        variant: "error",
+      });
+      return;
+    }
+    pushToast({ title: "Đã đổi tên tài liệu" });
+  }
+
+  async function handleSetVisibility(fileId: string, visibility: string) {
+    const snapshot = tree;
+    setTree((prev) =>
+      mapFiles(prev, fileId, (file) => ({ ...file, visibility })),
+    );
+
+    const formData = new FormData();
+    formData.set("id", fileId);
+    formData.set("visibility", visibility);
+    const result = await setResourceVisibilityAction(formData);
+    if (result.error) {
+      setTree(snapshot);
+      pushToast({
+        title: "Không đổi được quyền xem",
+        description: result.error,
+        variant: "error",
+      });
+      return;
+    }
+    pushToast({
+      title: `Quyền xem: ${VISIBILITY_LABELS[visibility] ?? visibility}`,
+    });
+  }
+
+  // ---------- Move (dialog) ----------
+
+  function openMoveFor(kind: "collection" | "lesson" | "file", id: string) {
+    for (const ws of tree) {
+      for (const col of ws.collections) {
+        if (kind === "collection" && col.id === id) {
+          setMoveTarget({ mode: "collection", id, currentW: ws.id });
+          return;
+        }
+        for (const les of col.lessons) {
+          if (kind === "lesson" && les.id === id) {
+            setMoveTarget({ mode: "lesson", id, currentC: col.id });
+            return;
+          }
+          for (const file of les.files) {
+            if (file.id === id && kind === "file") {
+              setMoveTarget({
+                mode: "file",
+                id,
+                currentW: ws.id,
+                currentC: col.id,
+                currentL: les.id,
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  async function handleMoveConfirm(selection: {
+    workspaceId?: string;
+    collectionId?: string;
+    lessonId?: string;
+  }) {
+    const target = moveTarget;
+    if (!target) return;
+    setMoveTarget(null);
+
+    const snapshot = tree;
+
+    if (target.mode === "collection") {
+      if (!selection.workspaceId) return;
+      setTree((prev) => {
+        const dragged = prev
+          .flatMap((ws) => ws.collections)
+          .find((col) => col.id === target.id);
+        if (!dragged) return prev;
+        return prev
+          .map((ws) => ({
+            ...ws,
+            collections: ws.collections.filter((col) => col.id !== target.id),
+          }))
+          .map((ws) =>
+            ws.id === selection.workspaceId
+              ? { ...ws, collections: [...ws.collections, dragged] }
+              : ws,
+          );
+      });
+      const formData = new FormData();
+      formData.set("collectionId", target.id);
+      formData.set("targetWorkspaceId", selection.workspaceId);
+      const result = await moveCollectionNodeAction(formData);
+      if (result.error) {
+        setTree(snapshot);
+        pushToast({
+          title: "Di chuyển thất bại",
+          description: result.error,
+          variant: "error",
+        });
+        return;
+      }
+      setExpanded((prev) => new Set(prev).add(selection.workspaceId!));
+      pushToast({ title: "Đã di chuyển bộ sưu tập" });
+      return;
+    }
+
+    if (target.mode === "lesson") {
+      if (!selection.collectionId) return;
+      setTree((prev) => {
+        let dragged: ExplorerLesson | undefined;
+        const removed = prev.map((ws) => ({
+          ...ws,
+          collections: ws.collections.map((col) => {
+            const found = col.lessons.find((les) => les.id === target.id);
+            if (found) dragged = found;
+            return {
+              ...col,
+              lessons: col.lessons.filter((les) => les.id !== target.id),
+            };
+          }),
+        }));
+        if (!dragged) return prev;
+        const lesson = dragged;
+        return removed.map((ws) => ({
+          ...ws,
+          collections: ws.collections.map((col) =>
+            col.id === selection.collectionId
+              ? { ...col, lessons: [...col.lessons, lesson] }
+              : col,
+          ),
+        }));
+      });
+      const formData = new FormData();
+      formData.set("lessonId", target.id);
+      formData.set("targetCollectionId", selection.collectionId);
+      const result = await moveLessonNodeAction(formData);
+      if (result.error) {
+        setTree(snapshot);
+        pushToast({
+          title: "Di chuyển thất bại",
+          description: result.error,
+          variant: "error",
+        });
+        return;
+      }
+      setExpanded((prev) => new Set(prev).add(selection.collectionId!));
+      pushToast({ title: "Đã di chuyển bài học" });
+      return;
+    }
+
+    // mode === "file"
+    if (!selection.lessonId) return;
+    setTree((prev) => {
+      let moved: ExplorerFile | undefined;
+      const removed = prev.map((ws) => ({
+        ...ws,
+        collections: ws.collections.map((col) => ({
+          ...col,
+          lessons: col.lessons.map((les) => {
+            const found = les.files.find((file) => file.id === target.id);
+            if (found) moved = found;
+            return {
+              ...les,
+              files: les.files.filter((file) => file.id !== target.id),
+            };
+          }),
+        })),
+      }));
+      if (!moved) return prev;
+      const file = moved;
+      return removed.map((ws) => ({
+        ...ws,
+        collections: ws.collections.map((col) => ({
+          ...col,
+          lessons: col.lessons.map((les) =>
+            les.id === selection.lessonId
+              ? { ...les, files: [...les.files, file] }
+              : les,
+          ),
+        })),
+      }));
+    });
+    const formData = new FormData();
+    formData.set("id", target.id);
+    formData.set("targetLessonId", selection.lessonId);
+    const result = await bulkMoveResourceAction(formData);
+    if (result.error) {
+      setTree(snapshot);
+      pushToast({
+        title: "Di chuyển thất bại",
+        description: result.error,
+        variant: "error",
+      });
+      return;
+    }
+    pushToast({ title: "Đã di chuyển tài liệu" });
+  }
+
+  // ---------- Tree drag & drop ----------
+
+  async function moveCollectionDirect(
+    collectionId: string,
+    targetWorkspaceId: string,
+  ) {
+    const snapshot = tree;
+    setTree((prev) => {
+      const dragged = prev
+        .flatMap((ws) => ws.collections)
+        .find((col) => col.id === collectionId);
+      if (!dragged) return prev;
+      return prev
+        .map((ws) => ({
+          ...ws,
+          collections: ws.collections.filter((col) => col.id !== collectionId),
+        }))
+        .map((ws) =>
+          ws.id === targetWorkspaceId
+            ? { ...ws, collections: [...ws.collections, dragged] }
+            : ws,
+        );
+    });
+
+    const formData = new FormData();
+    formData.set("collectionId", collectionId);
+    formData.set("targetWorkspaceId", targetWorkspaceId);
+    const result = await moveCollectionNodeAction(formData);
+    if (result.error) {
+      setTree(snapshot);
+      pushToast({
+        title: "Di chuyển thất bại",
+        description: result.error,
+        variant: "error",
+      });
+      return;
+    }
+    setExpanded((prev) => new Set(prev).add(targetWorkspaceId));
+    pushToast({ title: "Đã chuyển bộ sưu tập sang workspace khác" });
+  }
+
+  async function moveLessonDirect(lessonId: string, targetCollectionId: string) {
+    const snapshot = tree;
+    setTree((prev) => {
+      let dragged: ExplorerLesson | undefined;
+      const removed = prev.map((ws) => ({
+        ...ws,
+        collections: ws.collections.map((col) => {
+          const found = col.lessons.find((les) => les.id === lessonId);
+          if (found) dragged = found;
+          return {
+            ...col,
+            lessons: col.lessons.filter((les) => les.id !== lessonId),
+          };
+        }),
+      }));
+      if (!dragged) return prev;
+      const lesson = dragged;
+      return removed.map((ws) => ({
+        ...ws,
+        collections: ws.collections.map((col) =>
+          col.id === targetCollectionId
+            ? { ...col, lessons: [...col.lessons, lesson] }
+            : col,
+        ),
+      }));
+    });
+
+    const formData = new FormData();
+    formData.set("lessonId", lessonId);
+    formData.set("targetCollectionId", targetCollectionId);
+    const result = await moveLessonNodeAction(formData);
+    if (result.error) {
+      setTree(snapshot);
+      pushToast({
+        title: "Di chuyển thất bại",
+        description: result.error,
+        variant: "error",
+      });
+      return;
+    }
+    setExpanded((prev) => new Set(prev).add(targetCollectionId));
+    pushToast({ title: "Đã chuyển bài học sang bộ sưu tập khác" });
+  }
+
+  async function handleTreeDrop(target: { kind: string; id: string }) {
+    const drag = treeDrag;
+    setTreeDrag(null);
+    setTreeDropId(null);
+    if (!drag) return;
+
+    if (target.kind === "workspace") {
+      if (
+        drag.kind !== "collection" ||
+        drag.workspaceId === target.id ||
+        drag.id === target.id
+      ) {
+        return;
+      }
+      await moveCollectionDirect(drag.id, target.id);
+      return;
+    }
+
+    if (
+      drag.kind !== "lesson" ||
+      drag.collectionId === target.id ||
+      drag.id === target.id
+    ) {
+      return;
+    }
+    await moveLessonDirect(drag.id, target.id);
   }
 
   // ---------- Upload queue ----------
@@ -496,6 +954,18 @@ export function KhoExplorer({
                 onRenameCancel={() => setRenamingId(null)}
                 onCreateChild={handleCreateChild}
                 onDelete={setDeleteTarget}
+                onMoveNode={openMoveFor}
+                dnd={{
+                  drag: treeDrag,
+                  dropId: treeDropId,
+                  onDragStart: setTreeDrag,
+                  onDragEnd: () => {
+                    setTreeDrag(null);
+                    setTreeDropId(null);
+                  },
+                  setHover: setTreeDropId,
+                  onDrop: handleTreeDrop,
+                }}
               />
             ))}
           </ul>
@@ -513,6 +983,15 @@ export function KhoExplorer({
           onRenameCancel={() => setRenamingId(null)}
           onCreateChild={handleCreateChild}
           onDelete={setDeleteTarget}
+          onMoveNode={openMoveFor}
+          renamingFileId={renamingFileId}
+          onFileRenameStart={setRenamingFileId}
+          onFileRenameSave={handleRenameFile}
+          onFileRenameCancel={() => setRenamingFileId(null)}
+          onVisibility={(fileId, visibility) =>
+            void handleSetVisibility(fileId, visibility)
+          }
+          onInfo={setInfoFile}
           onPickFiles={(files) => {
             enqueueFiles(files);
           }}
@@ -564,6 +1043,23 @@ export function KhoExplorer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ExplorerMoveDialog
+        open={moveTarget !== null}
+        mode={moveTarget?.mode ?? "file"}
+        tree={tree}
+        current={
+          moveTarget?.mode === "file"
+            ? { w: moveTarget.currentW, c: moveTarget.currentC, l: moveTarget.currentL }
+            : moveTarget?.mode === "collection"
+              ? { w: moveTarget.currentW }
+              : { c: moveTarget?.currentC }
+        }
+        onOpenChange={(open) => !open && setMoveTarget(null)}
+        onConfirm={handleMoveConfirm}
+      />
+
+      <FileInfoDialog file={infoFile} onClose={() => setInfoFile(null)} />
     </div>
   );
 
@@ -758,6 +1254,15 @@ function deleteTargetDescription(target: DeleteTarget | null): string {
 
 // ---------- Tree ----------
 
+type TreeDnd = {
+  drag: TreeDragItem | null;
+  dropId: string | null;
+  onDragStart: (item: TreeDragItem) => void;
+  onDragEnd: () => void;
+  setHover: (id: string | null) => void;
+  onDrop: (target: { kind: string; id: string }) => void;
+};
+
 type TreeHandlers = {
   selected: ExplorerSelection;
   expanded: Set<string>;
@@ -773,6 +1278,8 @@ type TreeHandlers = {
       | { kind: "collection"; workspaceId: string; collectionId: string },
   ) => void;
   onDelete: (target: DeleteTarget) => void;
+  onMoveNode: (kind: "collection" | "lesson", id: string) => void;
+  dnd: TreeDnd;
 };
 
 function TreeNodes({
@@ -782,6 +1289,32 @@ function TreeNodes({
 }: { workspace: ExplorerWorkspace; depth: number } & TreeHandlers) {
   const isOpen = handlers.expanded.has(workspace.id);
   const isActive = handlers.selected.w === workspace.id && !handlers.selected.c;
+  const dropActive =
+    handlers.dnd.dropId === workspace.id &&
+    handlers.dnd.drag?.kind === "collection" &&
+    handlers.dnd.drag.workspaceId !== workspace.id;
+
+  const menuItems: MenuItemDef[] = [
+    {
+      label: "Thêm bộ sưu tập",
+      icon: <Plus aria-hidden="true" />,
+      onSelect: () =>
+        handlers.onCreateChild({ kind: "workspace", workspaceId: workspace.id }),
+    },
+    {
+      label: "Đổi tên",
+      icon: <Pencil aria-hidden="true" />,
+      onSelect: () => handlers.onRenameStart(workspace.id),
+    },
+    {
+      label: "Xóa workspace",
+      icon: <Trash2 aria-hidden="true" />,
+      destructive: true,
+      onSelect: () =>
+        handlers.onDelete({ kind: "workspace", id: workspace.id, name: workspace.name }),
+    },
+  ];
+
   return (
     <li>
       <TreeRow
@@ -794,31 +1327,35 @@ function TreeNodes({
         renaming={handlers.renamingId === workspace.id}
         onToggle={() => handlers.onToggle(workspace.id)}
         onSelect={() => handlers.onSelect({ w: workspace.id })}
-        onRenameSave={(name) => handlers.onRenameSave("workspace", workspace.id, name)}
-        onRenameCancel={handlers.onRenameCancel}
-        menu={
-          <NodeMenu
-            items={[
-              {
-                label: "Thêm bộ sưu tập",
-                icon: <Plus aria-hidden="true" />,
-                onSelect: () => handlers.onCreateChild({ kind: "workspace", workspaceId: workspace.id }),
-              },
-              {
-                label: "Đổi tên",
-                icon: <Pencil aria-hidden="true" />,
-                onSelect: () => handlers.onRenameStart(workspace.id),
-              },
-              {
-                label: "Xóa workspace",
-                icon: <Trash2 aria-hidden="true" />,
-                destructive: true,
-                onSelect: () =>
-                  handlers.onDelete({ kind: "workspace", id: workspace.id, name: workspace.name }),
-              },
-            ]}
-          />
+        onRenameSave={(name) =>
+          handlers.onRenameSave("workspace", workspace.id, name)
         }
+        onRenameCancel={handlers.onRenameCancel}
+        menu={<NodeMenu items={menuItems} />}
+        contextItems={menuItems}
+        badge={String(workspace.collections.length)}
+        dropActive={dropActive}
+        onDragOver={(event) => {
+          const drag = handlers.dnd.drag;
+          if (!drag || drag.kind !== "collection") return;
+          event.preventDefault();
+          if (handlers.dnd.dropId !== workspace.id) {
+            handlers.dnd.setHover(workspace.id);
+          }
+        }}
+        onDropRow={(event) => {
+          event.preventDefault();
+          const drag = handlers.dnd.drag;
+          if (
+            drag &&
+            drag.kind === "collection" &&
+            drag.workspaceId !== workspace.id
+          ) {
+            handlers.dnd.onDrop({ kind: "workspace", id: workspace.id });
+          } else {
+            handlers.dnd.setHover(null);
+          }
+        }}
       />
       {isOpen &&
         workspace.collections.map((col) => (
@@ -836,6 +1373,46 @@ function CollectionNodes({
   const isOpen = handlers.expanded.has(collection.id);
   const isActive =
     handlers.selected.c === collection.id && !handlers.selected.l;
+  const dropActive =
+    handlers.dnd.dropId === collection.id &&
+    handlers.dnd.drag?.kind === "lesson" &&
+    handlers.dnd.drag.collectionId !== collection.id;
+
+  const menuItems: MenuItemDef[] = [
+    {
+      label: "Thêm bài học",
+      icon: <Plus aria-hidden="true" />,
+      onSelect: () =>
+        handlers.onCreateChild({
+          kind: "collection",
+          workspaceId: collection.workspaceId,
+          collectionId: collection.id,
+        }),
+    },
+    {
+      label: "Đổi tên",
+      icon: <Pencil aria-hidden="true" />,
+      onSelect: () => handlers.onRenameStart(collection.id),
+    },
+    {
+      label: "Di chuyển…",
+      icon: <FolderInput aria-hidden="true" />,
+      onSelect: () => handlers.onMoveNode("collection", collection.id),
+    },
+    {
+      label: "Xóa bộ sưu tập",
+      icon: <Trash2 aria-hidden="true" />,
+      destructive: true,
+      onSelect: () =>
+        handlers.onDelete({
+          kind: "collection",
+          id: collection.id,
+          name: collection.name,
+          workspaceId: collection.workspaceId,
+        }),
+    },
+  ];
+
   return (
     <li>
       <TreeRow
@@ -856,41 +1433,45 @@ function CollectionNodes({
         onSelect={() =>
           handlers.onSelect({ w: collection.workspaceId, c: collection.id })
         }
-        onRenameSave={(name) => handlers.onRenameSave("collection", collection.id, name)}
-        onRenameCancel={handlers.onRenameCancel}
-        menu={
-          <NodeMenu
-            items={[
-              {
-                label: "Thêm bài học",
-                icon: <Plus aria-hidden="true" />,
-                onSelect: () =>
-                  handlers.onCreateChild({
-                    kind: "collection",
-                    workspaceId: collection.workspaceId,
-                    collectionId: collection.id,
-                  }),
-              },
-              {
-                label: "Đổi tên",
-                icon: <Pencil aria-hidden="true" />,
-                onSelect: () => handlers.onRenameStart(collection.id),
-              },
-              {
-                label: "Xóa bộ sưu tập",
-                icon: <Trash2 aria-hidden="true" />,
-                destructive: true,
-                onSelect: () =>
-                  handlers.onDelete({
-                    kind: "collection",
-                    id: collection.id,
-                    name: collection.name,
-                    workspaceId: collection.workspaceId,
-                  }),
-              },
-            ]}
-          />
+        onRenameSave={(name) =>
+          handlers.onRenameSave("collection", collection.id, name)
         }
+        onRenameCancel={handlers.onRenameCancel}
+        menu={<NodeMenu items={menuItems} />}
+        contextItems={menuItems}
+        badge={String(collection.lessons.length)}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          handlers.dnd.onDragStart({
+            kind: "collection",
+            id: collection.id,
+            workspaceId: collection.workspaceId,
+          });
+        }}
+        onDragEnd={handlers.dnd.onDragEnd}
+        dropActive={dropActive}
+        onDragOver={(event) => {
+          const drag = handlers.dnd.drag;
+          if (!drag || drag.kind !== "lesson") return;
+          event.preventDefault();
+          if (handlers.dnd.dropId !== collection.id) {
+            handlers.dnd.setHover(collection.id);
+          }
+        }}
+        onDropRow={(event) => {
+          event.preventDefault();
+          const drag = handlers.dnd.drag;
+          if (
+            drag &&
+            drag.kind === "lesson" &&
+            drag.collectionId !== collection.id
+          ) {
+            handlers.dnd.onDrop({ kind: "collection", id: collection.id });
+          } else {
+            handlers.dnd.setHover(null);
+          }
+        }}
       />
       {isOpen &&
         collection.lessons.map((lesson) => (
@@ -906,6 +1487,32 @@ function LessonRow({
   ...handlers
 }: { lesson: ExplorerLesson; depth: number } & TreeHandlers) {
   const isActive = handlers.selected.l === lesson.id;
+
+  const menuItems: MenuItemDef[] = [
+    {
+      label: "Đổi tên",
+      icon: <Pencil aria-hidden="true" />,
+      onSelect: () => handlers.onRenameStart(lesson.id),
+    },
+    {
+      label: "Di chuyển…",
+      icon: <FolderInput aria-hidden="true" />,
+      onSelect: () => handlers.onMoveNode("lesson", lesson.id),
+    },
+    {
+      label: "Xóa bài học",
+      icon: <Trash2 aria-hidden="true" />,
+      destructive: true,
+      onSelect: () =>
+        handlers.onDelete({
+          kind: "lesson",
+          id: lesson.id,
+          name: lesson.name,
+          workspaceId: lesson.workspaceId,
+        }),
+    },
+  ];
+
   return (
     <li>
       <TreeRow
@@ -926,29 +1533,20 @@ function LessonRow({
         }
         onRenameSave={(name) => handlers.onRenameSave("lesson", lesson.id, name)}
         onRenameCancel={handlers.onRenameCancel}
-        menu={
-          <NodeMenu
-            items={[
-              {
-                label: "Đổi tên",
-                icon: <Pencil aria-hidden="true" />,
-                onSelect: () => handlers.onRenameStart(lesson.id),
-              },
-              {
-                label: "Xóa bài học",
-                icon: <Trash2 aria-hidden="true" />,
-                destructive: true,
-                onSelect: () =>
-                  handlers.onDelete({
-                    kind: "lesson",
-                    id: lesson.id,
-                    name: lesson.name,
-                    workspaceId: lesson.workspaceId,
-                  }),
-              },
-            ]}
-          />
-        }
+        menu={<NodeMenu items={menuItems} />}
+        contextItems={menuItems}
+        badge={String(lesson.files.length)}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          handlers.dnd.onDragStart({
+            kind: "lesson",
+            id: lesson.id,
+            workspaceId: lesson.workspaceId,
+            collectionId: lesson.collectionId,
+          });
+        }}
+        onDragEnd={handlers.dnd.onDragEnd}
       />
     </li>
   );
@@ -967,6 +1565,14 @@ function TreeRow({
   onRenameSave,
   onRenameCancel,
   menu,
+  badge,
+  contextItems,
+  draggable,
+  onDragStart,
+  onDragEnd,
+  dropActive,
+  onDragOver,
+  onDropRow,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -980,6 +1586,14 @@ function TreeRow({
   onRenameSave: (name: string) => Promise<void>;
   onRenameCancel: () => void;
   menu: React.ReactNode;
+  badge?: string;
+  contextItems?: MenuItemDef[];
+  draggable?: boolean;
+  onDragStart?: (event: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  dropActive?: boolean;
+  onDragOver?: (event: React.DragEvent) => void;
+  onDropRow?: (event: React.DragEvent) => void;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -1001,13 +1615,13 @@ function TreeRow({
     );
   }
 
-  return (
-    <div
-      className={`group flex items-center gap-0.5 rounded-md pr-1 transition-colors hover:bg-muted ${
-        active ? "bg-muted font-medium" : ""
-      }`}
-      style={{ paddingLeft: `${depth * 14}px` }}
-    >
+  const rowClassName = `group flex items-center gap-0.5 rounded-md pr-1 transition-colors hover:bg-muted ${
+    active ? "bg-muted font-medium" : ""
+  } ${dropActive ? "bg-primary/10 ring-2 ring-primary/60" : ""}`;
+  const rowStyle = { paddingLeft: `${depth * 14}px` };
+
+  const rowInner = (
+    <>
       <button
         type="button"
         onClick={onSelect}
@@ -1030,43 +1644,107 @@ function TreeRow({
         {icon}
         <span className="truncate">{label}</span>
       </button>
+      {badge != null && badge !== "" ? (
+        <span className="shrink-0 pr-0.5 text-[11px] tabular-nums text-muted-foreground">
+          {badge}
+        </span>
+      ) : null}
       <span className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
         {menu}
       </span>
-    </div>
+    </>
+  );
+
+  const rowProps = {
+    style: rowStyle,
+    draggable: draggable || undefined,
+    onDragStart,
+    onDragEnd,
+    onDragOver,
+    onDrop: onDropRow,
+  };
+
+  if (!contextItems) {
+    return (
+      <div className={rowClassName} {...rowProps}>
+        {rowInner}
+      </div>
+    );
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger render={<div className={rowClassName} {...rowProps} />}>
+        {rowInner}
+      </ContextMenuTrigger>
+      <ContextMenuContent>{renderContextItems(contextItems)}</ContextMenuContent>
+    </ContextMenu>
   );
 }
 
-function NodeMenu({
-  items,
-}: {
-  items: {
-    label: string;
-    icon?: React.ReactNode;
-    destructive?: boolean;
-    onSelect: () => void;
-  }[];
-}) {
+function renderDropdownItems(items: MenuItemDef[]): React.ReactNode {
+  return items.map((item) =>
+    item.children && item.children.length > 0 ? (
+      <DropdownMenuSub key={item.label}>
+        <DropdownMenuSubTrigger>
+          {item.icon}
+          {item.label}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          {renderDropdownItems(item.children)}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    ) : (
+      <DropdownMenuItem
+        key={item.label}
+        variant={item.destructive ? "destructive" : "default"}
+        disabled={item.disabled}
+        onClick={() => item.onSelect?.()}
+      >
+        {item.icon}
+        {item.label}
+        {item.checked ? <Check className="ml-auto size-3.5" /> : null}
+      </DropdownMenuItem>
+    ),
+  );
+}
+
+function renderContextItems(items: MenuItemDef[]): React.ReactNode {
+  return items.map((item) => (
+    <ContextMenuItem
+      key={item.label}
+      variant={item.destructive ? "destructive" : "default"}
+      disabled={item.disabled}
+      onClick={() => item.onSelect?.()}
+    >
+      {item.icon}
+      {item.label}
+      {item.checked ? <Check className="ml-auto size-3.5" /> : null}
+    </ContextMenuItem>
+  ));
+}
+
+function NodeMenu({ items }: { items: MenuItemDef[] }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" aria-label="Tùy chọn" />}>
         <MoreVertical aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        {items.map((item) => (
-          <DropdownMenuItem
-            key={item.label}
-            variant={item.destructive ? "destructive" : "default"}
-            onClick={() => item.onSelect()}
-          >
-            {item.icon}
-            {item.label}
-          </DropdownMenuItem>
-        ))}
+        {items.some((item) => item.children) ? (
+          <>
+            {renderDropdownItems(items.filter((item) => !item.destructive))}
+            <DropdownSep />
+            {renderDropdownItems(items.filter((item) => item.destructive))}
+          </>
+        ) : (
+          renderDropdownItems(items)
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
+
 
 function InlineNameInput({
   initial,
@@ -1133,6 +1811,13 @@ function ContentPane({
   onRenameCancel,
   onCreateChild,
   onDelete,
+  onMoveNode,
+  renamingFileId,
+  onFileRenameStart,
+  onFileRenameSave,
+  onFileRenameCancel,
+  onVisibility,
+  onInfo,
   onPickFiles,
   dropEnabled,
   dragging,
@@ -1151,6 +1836,13 @@ function ContentPane({
       | { kind: "collection"; workspaceId: string; collectionId: string },
   ) => void;
   onDelete: (target: DeleteTarget) => void;
+  onMoveNode: (kind: "collection" | "lesson" | "file", id: string) => void;
+  renamingFileId: string | null;
+  onFileRenameStart: (fileId: string) => void;
+  onFileRenameSave: (fileId: string, title: string) => Promise<void>;
+  onFileRenameCancel: () => void;
+  onVisibility: (fileId: string, visibility: string) => void;
+  onInfo: (file: ExplorerFile) => void;
   onPickFiles: (files: File[]) => void;
   dropEnabled: boolean;
   dragging: boolean;
@@ -1313,6 +2005,11 @@ function ContentPane({
                   onSelect: () => onRenameStart(id),
                 },
                 {
+                  label: "Di chuyển…",
+                  icon: <FolderInput aria-hidden="true" />,
+                  onSelect: () => onMoveNode("collection", id),
+                },
+                {
                   label: "Xóa bộ sưu tập",
                   icon: <Trash2 aria-hidden="true" />,
                   destructive: true,
@@ -1355,6 +2052,11 @@ function ContentPane({
                   onSelect: () => onRenameStart(id),
                 },
                 {
+                  label: "Di chuyển…",
+                  icon: <FolderInput aria-hidden="true" />,
+                  onSelect: () => onMoveNode("lesson", id),
+                },
+                {
                   label: "Xóa bài học",
                   icon: <Trash2 aria-hidden="true" />,
                   destructive: true,
@@ -1382,6 +2084,13 @@ function ContentPane({
           href={(fileId) =>
             `/kho/${workspace!.id}/${collection!.id}/${lesson.id}/${fileId}`
           }
+          renamingId={renamingFileId}
+          onRenameStart={onFileRenameStart}
+          onRenameSave={onFileRenameSave}
+          onRenameCancel={onFileRenameCancel}
+          onVisibility={onVisibility}
+          onInfo={onInfo}
+          onMove={(fileId) => onMoveNode("file", fileId)}
           onDelete={(file) =>
             onDelete({
               kind: "file",
@@ -1486,13 +2195,36 @@ function FolderGrid({
   );
 }
 
+const VISIBILITY_OPTIONS = ["private", "unlisted", "public"] as const;
+
+const VISIBILITY_ICON_CLASS: Record<string, string> = {
+  private: "text-muted-foreground",
+  unlisted: "text-amber-500",
+  public: "text-emerald-500",
+  shared: "text-sky-500",
+};
+
 function FileList({
   files,
   href,
+  renamingId,
+  onRenameStart,
+  onRenameSave,
+  onRenameCancel,
+  onVisibility,
+  onInfo,
+  onMove,
   onDelete,
 }: {
   files: ExplorerFile[];
   href: (fileId: string) => string;
+  renamingId: string | null;
+  onRenameStart: (fileId: string) => void;
+  onRenameSave: (fileId: string, title: string) => Promise<void>;
+  onRenameCancel: () => void;
+  onVisibility: (fileId: string, visibility: string) => void;
+  onInfo: (file: ExplorerFile) => void;
+  onMove: (fileId: string) => void;
   onDelete: (file: ExplorerFile) => void;
 }) {
   if (files.length === 0) {
@@ -1500,44 +2232,107 @@ function FileList({
       <EmptyHint text="Bài học chưa có tài liệu — kéo thả tệp vào đây hoặc bấm “Tải tệp lên”." />
     );
   }
+
+  function menuFor(file: ExplorerFile): MenuItemDef[] {
+    return [
+      {
+        label: "Mở tài liệu",
+        icon: <BookOpen aria-hidden="true" />,
+        onSelect: () => {
+          window.location.href = href(file.id);
+        },
+      },
+      {
+        label: "Đổi tên",
+        icon: <Pencil aria-hidden="true" />,
+        onSelect: () => onRenameStart(file.id),
+      },
+      {
+        label: "Quyền xem",
+        icon: <Eye aria-hidden="true" />,
+        children: VISIBILITY_OPTIONS.map((option) => ({
+          label: VISIBILITY_LABELS[option] ?? option,
+          checked: file.visibility === option,
+          onSelect: () => onVisibility(file.id, option),
+        })),
+      },
+      {
+        label: "Di chuyển…",
+        icon: <FolderInput aria-hidden="true" />,
+        onSelect: () => onMove(file.id),
+      },
+      {
+        label: "Thông tin",
+        icon: <Info aria-hidden="true" />,
+        onSelect: () => onInfo(file),
+      },
+      {
+        label: "Xóa (vào thùng rác)",
+        icon: <Trash2 aria-hidden="true" />,
+        destructive: true,
+        onSelect: () => onDelete(file),
+      },
+    ];
+  }
+
   return (
     <ul className="flex flex-col p-2">
-      {files.map((file) => (
-        <li
-          key={file.id}
-          className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors animate-in fade-in slide-in-from-bottom-1 duration-300 hover:bg-muted"
-        >
-          <TypeIcon type={file.type} className="size-5 shrink-0" />
-          <Link
-            href={href(file.id)}
-            className="min-w-0 flex-1 truncate text-sm hover:underline"
-          >
-            {file.title}
-          </Link>
-          <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">
-            {file.lifecycleState === "ready" ? "Sẵn sàng" : file.lifecycleState}
-          </span>
-          <span className="opacity-0 transition-opacity group-hover:opacity-100">
-            <NodeMenu
-              items={[
-                {
-                  label: "Mở tài liệu",
-                  icon: <BookOpen aria-hidden="true" />,
-                  onSelect: () => {
-                    window.location.href = href(file.id);
-                  },
-                },
-                {
-                  label: "Xóa (vào thùng rác)",
-                  icon: <Trash2 aria-hidden="true" />,
-                  destructive: true,
-                  onSelect: () => onDelete(file),
-                },
-              ]}
-            />
-          </span>
-        </li>
-      ))}
+      {files.map((file) => {
+        const items = menuFor(file);
+        const renaming = renamingId === file.id;
+        return (
+          <li key={file.id}>
+            <ContextMenu>
+              <ContextMenuTrigger
+                render={
+                  <div className="group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors animate-in fade-in slide-in-from-bottom-1 duration-300 hover:bg-muted" />
+                }
+              >
+                <TypeIcon type={file.type} className="size-5 shrink-0" />
+                {renaming ? (
+                  <div className="min-w-0 flex-1">
+                    <InlineNameInput
+                      initial={file.title}
+                      busy={false}
+                      onSave={(title) => onRenameSave(file.id, title)}
+                      onCancel={onRenameCancel}
+                    />
+                  </div>
+                ) : (
+                  <Link
+                    href={href(file.id)}
+                    onClick={(event) => event.stopPropagation()}
+                    className="min-w-0 flex-1 truncate text-sm hover:underline"
+                  >
+                    {file.title}
+                  </Link>
+                )}
+                <span className="hidden shrink-0 text-xs tabular-nums text-muted-foreground sm:block">
+                  {typeof file.sizeBytes === "number"
+                    ? formatBytes(file.sizeBytes)
+                    : ""}
+                </span>
+                <Eye
+                  aria-hidden="true"
+                  className={`size-4 shrink-0 ${
+                    VISIBILITY_ICON_CLASS[file.visibility] ?? "text-muted-foreground"
+                  }`}
+                />
+                <span
+                  className={`shrink-0 ${
+                    renaming ? "opacity-100" : "opacity-0 transition-opacity group-hover:opacity-100"
+                  }`}
+                >
+                  <NodeMenu items={items} />
+                </span>
+              </ContextMenuTrigger>
+              {!renaming ? (
+                <ContextMenuContent>{renderContextItems(items)}</ContextMenuContent>
+              ) : null}
+            </ContextMenu>
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -6,6 +6,8 @@ export type ExplorerFile = {
   lifecycleState: string;
   youtubeId: string | null;
   externalUrl: string | null;
+  sizeBytes?: number | null;
+  createdAt?: string | null;
 };
 
 export type ExplorerLesson = {

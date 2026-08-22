@@ -456,3 +456,14 @@ User can register → create workspace → create collection → create lesson �
 - [x] Header/footer floating glass pill; Button gradient pill + glow; Card glass bo 2xl
 - [x] Auth layout 2 cột; PageHeader dùng chung cho các trang app; loading skeleton/error/404 đồng bộ
 - [x] tsc/lint/test(148)/build OK
+
+## PHASE 35 — Quản lý file/thư mục nâng cấp (context menu, toasts, di chuyển)
+- [x] Toast system toàn cục (`components/ui/toast.tsx`, ToastProvider trong root layout): thông báo thành công/lỗi cho tạo/đổi tên/xóa/di chuyển
+- [x] Context menu chuột phải trên mọi node của cây (workspace/bộ sưu tập/bài học) và từng tệp (`components/ui/context-menu.tsx` trên Base UI ContextMenu)
+- [x] Đổi tên tài liệu inline trong FileList; submenu "Quyền xem" đổi visibility nhanh (private/unlisted/public) kèm dấu check; icon mắt màu theo quyền xem + badge kích thước
+- [x] Actions mới có kiểm tra quyền: `renameResourceNodeAction`, `setResourceVisibilityAction`, `moveCollectionNodeAction` (giữa workspace), `moveLessonNodeAction` (giữa bộ sưu tập); vị trí mới = cuối danh sách đích
+- [x] Dialog "Di chuyển…" cho cả tệp (chọn workspace → bộ sưu tập → bài học), bài học và bộ sưu tập (`components/explorer/dialogs.tsx`); mục menu ở cây + grid; optimistic update + hoàn tác khi lỗi
+- [x] Drag & drop trên cây: kéo bộ sưu tập sang workspace khác, kéo bài học sang bộ sưu tập khác; drop-highlight ring-primary; badge số con trên từng node
+- [x] Ghi nhớ trạng thái mở/đóng node giữa các phiên (localStorage `kho-expanded-ids`)
+- [x] Dialog "Thông tin" tài liệu: loại, quyền xem, trạng thái, kích thước, ngày tạo, YouTube ID/liên kết
+- [x] typecheck/lint/test (148)/build OK

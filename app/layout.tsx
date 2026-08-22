@@ -5,6 +5,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { BackdropGlow } from "@/components/layout/backdrop-glow";
+import { ToastProvider } from "@/components/ui/toast";
 
 const beVietnamPro = Be_Vietnam_Pro({
   variable: "--font-sans",
@@ -39,10 +40,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${beVietnamPro.variable} ${geistMono.variable} ${baloo.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <BackdropGlow />
-        <SiteHeader />
-        <main className="relative flex-1">{children}</main>
-        <SiteFooter />
+        <ToastProvider>
+          <BackdropGlow />
+          <SiteHeader />
+          <main className="relative flex-1">{children}</main>
+          <SiteFooter />
+        </ToastProvider>
       </body>
     </html>
   );

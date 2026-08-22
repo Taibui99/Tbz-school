@@ -59,7 +59,7 @@ export default async function KhoPage({
       supabase
         .from("resources")
         .select(
-          "id, lesson_id, title, type, visibility, lifecycle_state, youtube_id, external_url",
+          "id, lesson_id, title, type, visibility, lifecycle_state, youtube_id, external_url, size_bytes, created_at",
         )
         .is("deleted_at", null)
         .order("created_at", { ascending: true }),
@@ -116,6 +116,8 @@ export default async function KhoPage({
       lifecycleState: row.lifecycle_state,
       youtubeId: row.youtube_id,
       externalUrl: row.external_url,
+      sizeBytes: row.size_bytes,
+      createdAt: row.created_at,
     };
     parent.files.push(file);
   }

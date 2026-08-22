@@ -226,3 +226,183 @@ export async function deleteLessonNodeAction(
   revalidateAfterDelete("lesson", workspaceId);
   return { id };
 }
+
+// ---------- Resource ops (đổi tên / quyền xem) ----------
+
+const MAX_RESOURCE_TITLE_LENGTH = 200;
+
+function validateTitle(title: string): string | null {
+  const trimmed = title.trim();
+  if (!trimmed) return "Tiêu đề không được để trống.";
+  if (trimmed.length > MAX_RESOURCE_TITLE_LENGTH) {
+    return `Tiêu đề tối đa ${MAX_RESOURCE_TITLE_LENGTH} ký tự.`;
+  }
+  return null;
+}
+
+function isVisibilityValue(value: string): boolean {
+  return ["private", "unlisted", "public"].includes(value);
+}
+
+export async function renameResourceNodeAction(
+  formData: FormData,
+): Promise<ExplorerActionResult> {
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "");
+
+  const titleError = validateTitle(name);
+  if (titleError) return { error: titleError };
+
+  const supabase = await createClient();
+  if (!(await requireUser(supabase))) return { error: "Chưa đăng nhập." };
+
+  const { error } = await supabase
+    .from("resources")
+    .update({ title: name.trim() })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/kho");
+  return { id, name: name.trim() };
+}
+
+export async function setResourceVisibilityAction(
+  formData: FormData,
+): Promise<ExplorerActionResult> {
+  const id = String(formData.get("id") ?? "");
+  const visibility = String(formData.get("visibility") ?? "");
+
+  if (!isVisibilityValue(visibility)) {
+    return { error: "Chế độ hiển thị không hợp lệ." };
+  }
+
+  const supabase = await createClient();
+  if (!(await requireUser(supabase))) return { error: "Chưa đăng nhập." };
+
+  const { error } = await supabase
+    .from("resources")
+    .update({ visibility })
+    .eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/kho");
+  revalidatePath("/kham-pha");
+  return { id };
+}
+
+// ---------- Move folder ----------
+
+async function ownedWorkspaceId(
+  supabase: SupabaseClient,
+  userId: string,
+  workspaceId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("workspaces")
+    .select("id")
+    .eq("id", workspaceId)
+    .eq("owner_id", userId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+export async function moveCollectionNodeAction(
+  formData: FormData,
+): Promise<ExplorerActionResult> {
+  const collectionId = String(formData.get("collectionId") ?? "");
+  const targetWorkspaceId = String(formData.get("targetWorkspaceId") ?? "");
+
+  const supabase = await createClient();
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
+
+  if (!(await ownedWorkspaceId(supabase, userId, targetWorkspaceId))) {
+    return { error: "Workspace đích không thuộc về bạn." };
+  }
+
+  const { data: collection } = await supabase
+    .from("collections")
+    .select("workspace_id")
+    .eq("id", collectionId)
+    .maybeSingle();
+  if (!collection) return { error: "Không tìm thấy bộ sưu tập." };
+  if (!(await ownedWorkspaceId(supabase, userId, collection.workspace_id))) {
+    return { error: "Bạn không có quyền di chuyển bộ sưu tập này." };
+  }
+  if (collection.workspace_id === targetWorkspaceId) {
+    return { id: collectionId };
+  }
+
+  const { data: maxRow } = await supabase
+    .from("collections")
+    .select("position")
+    .eq("workspace_id", targetWorkspaceId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("collections")
+    .update({
+      workspace_id: targetWorkspaceId,
+      position: (maxRow?.position ?? -1) + 1,
+    })
+    .eq("id", collectionId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/kho");
+  return { id: collectionId };
+}
+
+export async function moveLessonNodeAction(
+  formData: FormData,
+): Promise<ExplorerActionResult> {
+  const lessonId = String(formData.get("lessonId") ?? "");
+  const targetCollectionId = String(formData.get("targetCollectionId") ?? "");
+
+  const supabase = await createClient();
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
+
+  const { data: targetCollection } = await supabase
+    .from("collections")
+    .select("id, workspace_id")
+    .eq("id", targetCollectionId)
+    .maybeSingle();
+  if (!targetCollection) {
+    return { error: "Không tìm thấy bộ sưu tập đích." };
+  }
+  if (!(await ownedWorkspaceId(supabase, userId, targetCollection.workspace_id))) {
+    return { error: "Bộ sưu tập đích không thuộc về bạn." };
+  }
+
+  const { data: lesson } = await supabase
+    .from("lessons")
+    .select("collection_id")
+    .eq("id", lessonId)
+    .maybeSingle();
+  if (!lesson) return { error: "Không tìm thấy bài học." };
+  if (lesson.collection_id === targetCollectionId) {
+    return { id: lessonId };
+  }
+
+  const { data: maxRow } = await supabase
+    .from("lessons")
+    .select("position")
+    .eq("collection_id", targetCollectionId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("lessons")
+    .update({
+      collection_id: targetCollectionId,
+      position: (maxRow?.position ?? -1) + 1,
+    })
+    .eq("id", lessonId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/kho");
+  return { id: lessonId };
+}
