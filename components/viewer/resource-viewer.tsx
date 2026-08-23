@@ -17,6 +17,12 @@ const TextViewer = lazy(() =>
 const DocxViewer = lazy(() =>
   import("./docx-viewer").then((m) => ({ default: m.DocxViewer })),
 );
+const XlsxViewer = lazy(() =>
+  import("./xlsx-viewer").then((m) => ({ default: m.XlsxViewer })),
+);
+const PptxViewer = lazy(() =>
+  import("./pptx-viewer").then((m) => ({ default: m.PptxViewer })),
+);
 
 function Loading() {
   return (
@@ -52,10 +58,18 @@ export function ResourceViewer({
   }
 
   if (viewer.kind === "office" || viewer.kind === "unsupported") {
-    if (viewer.kind === "office" && viewer.previewable && viewer.url) {
+    if (viewer.kind === "office" && viewer.previewType && viewer.url) {
       return (
         <Suspense fallback={<Loading />}>
-          <DocxViewer src={viewer.url} downloadUrl={downloadUrl} />
+          {viewer.previewType === "docx" && (
+            <DocxViewer src={viewer.url} downloadUrl={downloadUrl} />
+          )}
+          {(viewer.previewType === "xlsx" || viewer.previewType === "xls") && (
+            <XlsxViewer src={viewer.url} downloadUrl={downloadUrl} />
+          )}
+          {viewer.previewType === "pptx" && (
+            <PptxViewer src={viewer.url} downloadUrl={downloadUrl} />
+          )}
         </Suspense>
       );
     }

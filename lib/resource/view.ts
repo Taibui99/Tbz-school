@@ -14,18 +14,52 @@ export type ViewerResult =
   | { kind: "pdf" | "image" | "audio" | "text"; url: string | null }
   | { kind: "video"; url: string | null; youtubeId?: string | null }
   | { kind: "url"; url: string | null }
-  | { kind: "office"; url: string | null; previewable: boolean }
+  | {
+      kind: "office";
+      url: string | null;
+      previewType: OfficePreviewKind | null;
+    }
   | { kind: "unsupported" };
 
-const DOCX_MIME_PATTERN = /wordprocessingml\.document/i;
+export type OfficePreviewKind = "docx" | "xlsx" | "xls" | "pptx";
 
-export function isDocxPreviewable(ctx: {
+const OFFICE_PREVIEW_RULES: Array<{
+  target: OfficePreviewKind;
+  mimePattern: RegExp;
+  extensions: string[];
+}> = [
+  {
+    target: "docx",
+    mimePattern: /wordprocessingml\.document/i,
+    extensions: [".docx"],
+  },
+  {
+    target: "xlsx",
+    mimePattern: /spreadsheetml\.sheet/i,
+    extensions: [".xlsx"],
+  },
+  {
+    target: "xls",
+    mimePattern: /ms-excel/i,
+    extensions: [".xls"],
+  },
+  {
+    target: "pptx",
+    mimePattern: /presentationml\.presentation/i,
+    extensions: [".pptx"],
+  },
+];
+
+export function officePreviewKind(ctx: {
   mime: string | null;
   original_filename?: string | null;
-}): boolean {
-  if (ctx.mime && DOCX_MIME_PATTERN.test(ctx.mime)) return true;
-  const name = ctx.original_filename ?? "";
-  return /\.docx$/i.test(name.trim());
+}): OfficePreviewKind | null {
+  for (const rule of OFFICE_PREVIEW_RULES) {
+    if (ctx.mime && rule.mimePattern.test(ctx.mime)) return rule.target;
+    const name = (ctx.original_filename ?? "").trim().toLowerCase();
+    if (rule.extensions.some((ext) => name.endsWith(ext))) return rule.target;
+  }
+  return null;
 }
 
 export interface ViewContext {
@@ -104,7 +138,7 @@ export async function resolveViewer(ctx: ViewContext): Promise<ViewerResult> {
     return {
       kind,
       url,
-      previewable: url !== null && isDocxPreviewable(ctx),
+      previewType: url !== null ? officePreviewKind(ctx) : null,
     };
   }
   return { kind, url };

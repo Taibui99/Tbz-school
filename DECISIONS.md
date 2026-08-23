@@ -264,11 +264,11 @@ For YouTube uploads the client passes its `uploadUrl` to `finalizeUploadAction` 
 Reason:
 Google's PUT response lacks CORS headers, so browsers block reading it client-side even though the upload itself succeeds. Querying from the server avoids the browser restriction without proxying file bytes through the app server.
 
-## ADR-026 — Xem trước .docx client-side + ký URL tải cho file office
+## ADR-026 — Xem trước office client-side + ký URL tải cho file office
 Status: Accepted
 
 Decision:
-`resolveViewer` giờ ký URL đọc cho MỌI kind có tệp (kể cả office), trả `{kind:'office', url, previewable}`. `.docx` (nhận qua mime wordprocessingml hoặc đuôi file) render inline bằng thư viện `docx-preview` ngay trong trình duyệt; các loại office khác giữ fallback trung thực + nút tải hoạt động. Lỗi ký URL được log server-side (`[viewer]`) thay vì nuốt im lặng.
+`resolveViewer` giờ ký URL đọc cho MỌI kind có tệp (kể cả office), trả `{kind:'office', url, previewType}`. Preview render ngay trong trình duyệt, chọn thư viện theo `officePreviewKind()`: `.docx` → `docx-preview`, `.xlsx/.xls` → SheetJS (bảng React, không innerHTML), `.pptx` → `pptx-preview`. Các loại khác (.doc/.ppt) và lỗi render giữ fallback trung thực + nút tải hoạt động. Lỗi ký URL được log server-side (`[viewer]`) thay vì nuốt im lặng. Cố tình KHÔNG dùng Google Docs Viewer / Microsoft Office Viewer vì chúng yêu cầu đưa URL file cho bên thứ ba tải về và có cache.
 
 Reason:
-Người dùng không mở được nội dung Word trên web và nút Tải về không bao giờ hiện (office trước đây không được ký URL). Render client-side từ signed URL giữ nguyên tính riêng tư: bytes chỉ về máy người dùng, không gửi cho dịch vụ chuyển đổi bên thứ ba nào.
+Người dùng cần mở nội dung Word/Excel/PowerPoint trực tiếp trên web (kể cả người được chia sẻ). Render client-side từ signed URL giữ nguyên tính riêng tư: bytes chỉ về máy người dùng, không gửi cho dịch vụ chuyển đổi nào; đồng thời miễn phí, không phụ thuộc dịch vụ ngoài đang bị khai tử (Office viewer của Microsoft không còn được hỗ trợ chính thức).
