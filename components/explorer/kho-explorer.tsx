@@ -1109,6 +1109,15 @@ async function uploadOne(
   formData.set("fileName", file.name);
   formData.set("sizeBytes", String(file.size));
 
+  // Video đi thẳng YouTube nên bỏ qua dedup; tệp thường tính hash trước
+  // để server phát hiện trùng và tái sử dụng object đã có.
+  const isVideoUpload = isVideoName(file.name);
+  if (!isVideoUpload) {
+    try {
+      formData.set("sha256", await sha256Hex(await file.arrayBuffer()));
+    } catch {}
+  }
+
   let session: Awaited<ReturnType<typeof quickUploadSessionAction>>;
   try {
     session = await quickUploadSessionAction(formData);
@@ -1116,10 +1125,50 @@ async function uploadOne(
     updateItem(item.key, { status: "error", error: "Không tạo được phiên tải lên." });
     return;
   }
-  if (session.error || !session.uploadUrl || !session.key || !session.resourceId) {
+  if (session.error || !session.resourceId) {
     updateItem(item.key, {
       status: "error",
       error: session.error ?? "Không tạo được phiên tải lên.",
+    });
+    return;
+  }
+
+  // Trùng lặp: server tái sử dụng object có sẵn — không cần PUT/finalize.
+  if (session.duplicate) {
+    const dupLessonId = session.lessonId;
+    const explorerFile: ExplorerFile = {
+      id: session.resourceId,
+      title: titleFromName(file.name),
+      type: resourceTypeFromFileName(file.name) ?? "text",
+      visibility: "private",
+      lifecycleState: "ready",
+      youtubeId: null,
+      externalUrl: null,
+      sizeBytes: file.size,
+    };
+    if (dupLessonId) {
+      setTree((prev) =>
+        prev.map((ws) => ({
+          ...ws,
+          collections: ws.collections.map((col) => ({
+            ...col,
+            lessons: col.lessons.map((les) =>
+              les.id === dupLessonId
+                ? { ...les, files: [...les.files, explorerFile] }
+                : les,
+            ),
+          })),
+        })),
+      );
+    }
+    updateItem(item.key, { status: "done", progress: 100 });
+    return;
+  }
+
+  if (!session.uploadUrl || !session.key) {
+    updateItem(item.key, {
+      status: "error",
+      error: "Không tạo được phiên tải lên.",
     });
     return;
   }
