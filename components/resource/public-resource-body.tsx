@@ -19,6 +19,7 @@ export interface PublicResource {
   type: string;
   visibility: string;
   mime: string | null;
+  original_filename?: string | null;
   lifecycle_state: string;
   provider: string | null;
   storage_key: string | null;

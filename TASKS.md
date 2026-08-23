@@ -177,7 +177,7 @@ Acceptance: `components/viewer/video-viewer.tsx` — `<video controls>` native (
 - [ ] Presentation mode
 - [ ] Slide navigation
 
-Acceptance (quyết định thực tế): file office là private signed URL nên KHÔNG dùng Google/Microsoft Docs viewer (sẽ phải phơi file công khai — vi phạm rule privacy, xem DECISIONS). Strategy: kind `office` → honest fallback panel trong `resource-viewer.tsx` (giải thích + nút tải về) cho đến khi có pipeline server chuyển đổi/OCR. Processing status n/a (không có server processing). Presentation mode/slide navigation để dành.
+Acceptance (cập nhật): file office là private signed URL nên KHÔNG dùng Google/Microsoft Docs viewer (phơi file cho bên thứ ba — vi phạm rule privacy, xem ADR-026). `.docx` xem trước client-side qua `docx-preview` (`components/viewer/docx-viewer.tsx`, lazy chunk, fetch signed URL về trình duyệt rồi render — bytes không rời khỏi user). Mọi loại office (doc/docx/ppt/pptx/xls/xlsx) khi `ready` + có storage giờ được ký URL đọc → nút "Tải về" hoạt động (trước đây `resolveViewer` không ký URL cho office nên nút tải ẩn dù thông báo bảo tải về). PPT/XLS và .doc lỗi render → fallback trung thực. Processing status n/a (không có server processing). Presentation mode/slide navigation để dành.
 
 ## PHASE 13 — Annotation engine
 - [x] Annotation schema (bảng `annotations` đã có từ Phase 2; migration `20260816000003_phase13_annotations.sql` thêm index `(resource_id, user_id)`)
@@ -258,11 +258,14 @@ Acceptance: `/tong-quan` (page-level guard đăng nhập, header có link "Tổn
 Acceptance: migration `20260816000004_phase18_trash.sql`. Thùng rác liệt kê tài liệu đã xóa (owner) với Khôi phục/Xóa vĩnh viễn/Dọn thùng rác (có confirm). Xóa vĩnh viễn xóa object storage chỉ khi không còn resource hoặc resource_files nào tham chiếu (`tests/trash.test.ts`). Phiên bản tệp: panel trên detail page (phiên bản hiện tại, tải bản mới, khôi phục bản cũ); các phiên bản cũ giữ object trong lịch sử. Smoke: /thung-rac 200 (rỗng + có item), restore/permanent qua RLS OK, detail hiện "Phiên bản tệp", header có "Thùng rác". Session cookie đã refresh (expires_at 1786885065).
 
 ## PHASE 19 — Deduplication
-- [ ] File hashing
-- [ ] Duplicate detection
-- [ ] Physical object reuse where appropriate
-- [ ] Reference counting
-- [ ] Safe cleanup
+- [x] File hashing — client đã tính SHA-256 lúc finalize từ trước; nay gửi hash lên ngay từ lúc tạo phiên tải lên (`sha256Hex(await file.arrayBuffer())` trong `uploadOne`)
+- [x] Duplicate detection — `createUploadSessionAction`/`quickUploadSessionAction` nhận `sha256` → tra cứu resource cùng chủ sở hữu, hash trùng, ready, chưa xóa (`findReusableObject`)
+- [x] Physical object reuse where appropriate — trùng thì tạo/đổi resource thành "ready" trỏ **cùng storage_key** (`completeWithReusedObject` + `lib/upload/dedup.ts`), client bỏ qua PUT/finalize; video (YouTube) và url loại trừ; quota tính theo tham chiếu (ADR-025)
+- [x] Reference counting — mỗi lần tái sử dụng ghi 1 dòng `resource_files` cùng storage_key; xóa vĩnh viễn/thùng rác chỉ xóa object khi **hết toàn bộ tham chiếu** (đã có từ Phase 18, `tests/trash.test.ts`)
+- [x] Safe cleanup — cancel/hủy phiên stale vẫn chỉ xóa storage_key riêng của phiên đó (dedup resource không bao giờ có key riêng); migration `20260823000001_phase19_dedup.sql` thêm partial index `(owner_id, content_hash)`
+- [x] Tests: dedup logic (+7): `canDeduplicate`, `buildReusedResourceRow`, `buildReusedResourceFileRow`; typecheck/lint/test (155)/build OK
+
+Acceptance: upload tệp trùng (cùng owner) hoàn thành tức thì mà không truyền bytes; object vật lý chỉ một bản; xóa một trong hai tài liệu không mất dữ liệu của tài liệu còn lại (object còn ref).
 
 ## PHASE 20 — Quota/cost controls
 - [ ] Per-user storage quota
@@ -419,7 +422,7 @@ Acceptance: CI passes from a clean checkout.
 - [x] Giảm quota lưu trữ/user 1 GB → 250 MB (ADR-018, ADR-022) vì Supabase free chỉ 1 GB tổng
 - [x] Tests: youtubeIdFromUrl (+11), quota 250MB; typecheck/lint/build OK
 - [x] Smoke: tạo video resource youtube_id → detail page render iframe YouTube
-- [ ] Upload tự động qua YouTube Data API v3 (OAuth account Google, `GOOGLE_CLIENT_ID/SECRET`) — chờ creds OAuth từ Google Cloud Console
+- [x] Upload tự động qua YouTube Data API v3 (OAuth account Google, `GOOGLE_CLIENT_ID/SECRET`) — đã chạy thật trên production
   - [x] Migration `20260817000002_phase32_youtube_upload.sql`: bảng `google_oauth` (refresh token, RLS không policy) — đã push prod
   - [x] `lib/youtube/client.ts`: consent URL (scope `youtube.upload`, offline, prompt=consent), exchange/refresh token, upload resumable → videoId
   - [x] API `/api/auth/google/start` + `/api/auth/google/callback` (upsert `google_oauth`, redirect `/ho-so?google=connected`)
@@ -436,7 +439,7 @@ Acceptance: CI passes from a clean checkout.
   - [x] Tests: youtube-client `initiateResumableVideoUpload` (+3), upload-validate `maxSizeBytes`/`mimeFromFileName` (+3), resource-download `youtubeId` (+2); typecheck/lint/test (139) /build OK
   - [x] Fix bug: trang `/ho-so` crash SSR "Element type is invalid ... got: undefined" (HTTP 200 + error boundary `$RX`). Nguyên nhân: `components/profile/profile-form.tsx` export object `ProfileForm = { AvatarUpload, ProfileInfo }` (module `"use client"`) rồi truy cập `ProfileForm.AvatarUpload` từ server component — client-reference không resolve thuộc tính → `undefined`. Fix: đổi thành named exports `export { AvatarUpload, ProfileInfo }` + import trực tiếp trong `app/ho-so/page.tsx`. Verify: dev + prod build local đều `$RC` success; typecheck/lint/test (141) /build OK; production tbz-school.vercel.app/ho-so hết lỗi
   - [x] Fix bug: upload video thất bại `check constraint resources_provider_check` — migration `20260820000001_phase32_youtube_provider.sql` thêm `'youtube'` vào danh sách provider hợp lệ (đã apply prod). Fix client: PUT tới session URL YouTube dùng `mime` do server trả (khớp `X-Upload-Content-Type`), lỗi PUT hiện rõ HTTP status. E2E backend: upload video mẫu thật lên kênh admin OK (videoId `drPxYp5wrEk`, unlisted).
-  - [ ] Cấu hình Google Cloud + Supabase + Vercel (xem bước triển khai) → test upload video thật
+  - [x] Cấu hình Google Cloud + Supabase + Vercel → test upload video thật OK. OAuth consent screen đã Publish (production) → refresh token không còn hạn 7 ngày; admin đã ngắt/kết nối lại để lấy token production; user tự test upload video trên prod thành công — **Phase 32 hoàn thành**
 
 Definition of done:
 User can register → create workspace → create collection → create lesson → upload/import resource → store safely → open in browser → interact with supported formats → retain annotations/state → choose visibility → share/discover according to permissions → search → favorite → delete/restore → manage quota.

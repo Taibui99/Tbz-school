@@ -28,7 +28,7 @@ export default async function PublicResourcePage({
   const { data: row } = await supabase
     .from("resources")
     .select(
-      "id, owner_id, title, description, type, visibility, mime, lifecycle_state, provider, storage_key, external_url, youtube_id, created_at",
+      "id, owner_id, title, description, type, visibility, mime, original_filename, lifecycle_state, provider, storage_key, external_url, youtube_id, created_at",
     )
     .eq("id", id)
     .eq("visibility", "public")
@@ -50,6 +50,7 @@ export default async function PublicResourcePage({
       external_url: resource.external_url,
       youtube_id: resource.youtube_id,
       deleted_at: null,
+      original_filename: resource.original_filename,
     }),
   ]);
 

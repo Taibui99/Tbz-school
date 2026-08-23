@@ -14,7 +14,19 @@ export type ViewerResult =
   | { kind: "pdf" | "image" | "audio" | "text"; url: string | null }
   | { kind: "video"; url: string | null; youtubeId?: string | null }
   | { kind: "url"; url: string | null }
-  | { kind: "office" | "unsupported" };
+  | { kind: "office"; url: string | null; previewable: boolean }
+  | { kind: "unsupported" };
+
+const DOCX_MIME_PATTERN = /wordprocessingml\.document/i;
+
+export function isDocxPreviewable(ctx: {
+  mime: string | null;
+  original_filename?: string | null;
+}): boolean {
+  if (ctx.mime && DOCX_MIME_PATTERN.test(ctx.mime)) return true;
+  const name = ctx.original_filename ?? "";
+  return /\.docx$/i.test(name.trim());
+}
 
 export interface ViewContext {
   type: string;
@@ -25,6 +37,7 @@ export interface ViewContext {
   external_url: string | null;
   youtube_id: string | null;
   deleted_at: string | null;
+  original_filename?: string | null;
 }
 
 export function viewerKindFor(ctx: ViewContext): ViewerKind {
@@ -56,25 +69,43 @@ export function viewerKindFor(ctx: ViewContext): ViewerKind {
 export async function resolveViewer(ctx: ViewContext): Promise<ViewerResult> {
   const kind = viewerKindFor(ctx);
   if (kind === "url") return { kind, url: ctx.external_url };
-  if (kind === "office" || kind === "unsupported") return { kind };
+  if (kind === "unsupported") return { kind };
+
+  const skipSigning = kind === "video" && !!ctx.youtube_id;
+  let url: string | null = null;
+  if (
+    !skipSigning &&
+    ctx.lifecycle_state === "ready" &&
+    ctx.provider &&
+    ctx.storage_key &&
+    isSupportedProvider(ctx.provider)
+  ) {
+    const providerName = ctx.provider;
+    const storageKey = ctx.storage_key;
+    try {
+      const provider = getStorageProvider(providerName);
+      url = await provider.getSignedReadUrl(storageKey, {
+        expiresInSeconds: 3600,
+      });
+    } catch (error) {
+      console.error(
+        "[viewer] Không ký được URL đọc:",
+        { provider: providerName, kind },
+        error,
+      );
+      url = null;
+    }
+  }
+
   if (kind === "video" && ctx.youtube_id) {
     return { kind: "video", url: null, youtubeId: ctx.youtube_id };
   }
-  if (
-    ctx.lifecycle_state !== "ready" ||
-    !ctx.provider ||
-    !ctx.storage_key ||
-    !isSupportedProvider(ctx.provider)
-  ) {
-    return { kind, url: null };
+  if (kind === "office") {
+    return {
+      kind,
+      url,
+      previewable: url !== null && isDocxPreviewable(ctx),
+    };
   }
-  try {
-    const provider = getStorageProvider(ctx.provider);
-    const url = await provider.getSignedReadUrl(ctx.storage_key, {
-      expiresInSeconds: 3600,
-    });
-    return { kind, url };
-  } catch {
-    return { kind: "unsupported" };
-  }
+  return { kind, url };
 }

@@ -14,6 +14,9 @@ const VideoViewer = lazy(() =>
 const TextViewer = lazy(() =>
   import("./text-viewer").then((m) => ({ default: m.TextViewer })),
 );
+const DocxViewer = lazy(() =>
+  import("./docx-viewer").then((m) => ({ default: m.DocxViewer })),
+);
 
 function Loading() {
   return (
@@ -49,6 +52,13 @@ export function ResourceViewer({
   }
 
   if (viewer.kind === "office" || viewer.kind === "unsupported") {
+    if (viewer.kind === "office" && viewer.previewable && viewer.url) {
+      return (
+        <Suspense fallback={<Loading />}>
+          <DocxViewer src={viewer.url} downloadUrl={downloadUrl} />
+        </Suspense>
+      );
+    }
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card py-12 text-center">
         <FileQuestion aria-hidden="true" className="size-8 text-muted-foreground" />

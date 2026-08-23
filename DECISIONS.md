@@ -154,7 +154,16 @@ Decision:
 **Mô hình kho video trung tâm:** account Google của admin (`ADMIN_EMAILS`) là nơi lưu video của **toàn web**. Admin kết nối 1 lần (OAuth 2.0, scope `https://www.googleapis.com/auth/youtube.upload`, `access_type=offline`, `prompt=consent`); refresh token lưu server-side trong bảng `google_oauth` (1 dòng `id=1`, RLS không policy — chỉ service role). Mọi user sở hữu video đều bấm "Đăng lên kênh TBZ School (unlisted)" → server: kiểm tra quyền → tạo resumable session (`initiateResumableVideoUpload`) → **client PUT thẳng bytes tới session URL** (không qua server, không giới hạn dung lượng, không tính quota/user) → đọc `videoId` → gán `youtube_id` + `ready`. Video không còn lưu vào R2 nữa (bỏ `MAX_FILE_SIZE_BYTES` 50 MB cho video). Tiêu đề video: `[<họ tên user> | TBZ School | <original_filename>]` (≤100 ký tự). **Không dùng playlist** vì YouTube giới hạn ~200 playlist/kênh. Chỉ admin được kết nối/ngắt kết nối tài khoản trung tâm; người khác bị chặn ở API lẫn UI.
 
 Reason:
-User dùng 1 account Google cá nhân làm "ổ cứng" cho toàn web — đơn giản, miễn phí, không giới hạn dung lượng. Video unlisted nên chỉ ai có link tài liệu trong app mới xem được; tổ chức thật nằm ở cây workspace→collection→lesson (mỗi tài liệu 1 link). Playlist bỏ vì không phản ánh được cây phân cấp (playlist phẳng) và chạm trần 200/kênh khi user đông. Token tuyệt đối không vào client; `google_oauth` không có policy RLS nào. Consent screen ở chế độ Testing khiến refresh token hết hạn sau 7 ngày — cần *Publish* app. Scope `youtube.upload` nhạy cảm thấp → publish được không cần review.
+User dùng 1 account Google cá nhân làm "ổ cứng" cho toàn web — đơn giản, miễn phí, không giới hạn dung lượng. Video unlisted nên chỉ ai có link tài liệu trong app mới xem được; tổ chức thật nằm ở cây workspace→collection→lesson (mỗi tài liệu 1 link). Playlist bỏ vì không phản ánh được cây phân cấp (playlist phẳng) và chạm trần 200/kênh khi user đông. Token tuyệt đối không vào client; `google_oauth` không có policy RLS nào. OAuth consent screen đã **Publish lên production** — refresh token tồn tại vĩnh viễn (trước đó chế độ Testing giới hạn token 7 ngày); admin đã ngắt/kết nối lại một lần để lấy token production. Scope `youtube.upload` nhạy cảm → app unverified vẫn dùng được cho ≤100 tài khoản test, chỉ admin kết nối nên không cần verification của Google.
+
+### ADR-025 — Deduplication tệp trong kho (Phase 19)
+Status: Accepted (Phase 19)
+
+Decision:
+Tệp thường (không phải video YouTube, không phải url) gửi kèm SHA-256 ngay từ lúc tạo phiên tải lên. Server tra cứu resource **cùng chủ sở hữu** có hash trùng, lifecycle ready, chưa xóa, có storage_key trên r2/supabase_storage (`findReusableObject`). Trùng → tạo resource mới (hoặc hoàn tất draft) trỏ **cùng storage_key**, ghi thêm 1 dòng `resource_files` tham chiếu object cũ (`completeWithReusedObject`, `lib/upload/dedup.ts`); client nhận `duplicate: true` và bỏ qua PUT/finalize nên bytes không truyền lại. Quota per-user vẫn tính **theo tham chiếu** (mỗi resource tính full size_bytes), không trừ vì dedup. Migration `20260823000001_phase19_dedup.sql` thêm partial index `(owner_id, content_hash)`.
+
+Reason:
+Dedup giới hạn trong phạm vi owner vì khóa object chứa userId và tránh mọi câu hỏi quyền riêng tư khi tái sử dụng chéo tài khoản (chia sẻ chéo owner vẫn đi qua luồng "Lưu vào kho" ADR-021). Video bỏ qua vì đi thẳng YouTube (không có object để dùng lại). Quota tính theo tham chiếu giữ ngữ nghĩa đơn giản "mỗi tài liệu bạn thấy đều tính dung lượng của nó"; lợi ích thật của dedup là tiết kiệm bytes vật lý trên R2/Supabase — phần chi phí lớn nhất. Xóa an toàn nhờ ref-count sẵn có của Phase 18: object chỉ bị xóa vật lý khi không còn resource/resource_files nào tham chiếu.
 
 ### ADR-024 — Đăng nhập bằng Google
 Status: Accepted (Phase 32)
@@ -254,3 +263,12 @@ For YouTube uploads the client passes its `uploadUrl` to `finalizeUploadAction` 
 
 Reason:
 Google's PUT response lacks CORS headers, so browsers block reading it client-side even though the upload itself succeeds. Querying from the server avoids the browser restriction without proxying file bytes through the app server.
+
+## ADR-026 — Xem trước .docx client-side + ký URL tải cho file office
+Status: Accepted
+
+Decision:
+`resolveViewer` giờ ký URL đọc cho MỌI kind có tệp (kể cả office), trả `{kind:'office', url, previewable}`. `.docx` (nhận qua mime wordprocessingml hoặc đuôi file) render inline bằng thư viện `docx-preview` ngay trong trình duyệt; các loại office khác giữ fallback trung thực + nút tải hoạt động. Lỗi ký URL được log server-side (`[viewer]`) thay vì nuốt im lặng.
+
+Reason:
+Người dùng không mở được nội dung Word trên web và nút Tải về không bao giờ hiện (office trước đây không được ký URL). Render client-side từ signed URL giữ nguyên tính riêng tư: bytes chỉ về máy người dùng, không gửi cho dịch vụ chuyển đổi bên thứ ba nào.
