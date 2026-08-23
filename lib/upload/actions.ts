@@ -18,6 +18,12 @@ import { StorageError } from "@/lib/storage/types";
 import { getAccessToken, initiateResumableVideoUpload } from "@/lib/youtube/client";
 import { getGoogleConnection } from "@/lib/youtube/store";
 import { buildYoutubeVideoTitle } from "@/lib/youtube/title";
+import {
+  buildReusedResourceFileRow,
+  buildReusedResourceRow,
+  canDeduplicate,
+  type ReusableObject,
+} from "@/lib/upload/dedup";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -95,6 +101,89 @@ function makeStorageKey(userId: string, resourceId: string, fileName: string) {
   return `${userId}/${resourceId}/${randomUUID()}.${ext}`;
 }
 
+// ---------- Deduplication (Phase 19) ----------
+
+async function findReusableObject(
+  supabase: SupabaseClient,
+  userId: string,
+  contentHash: string,
+): Promise<ReusableObject | null> {
+  const { data } = await supabase
+    .from("resources")
+    .select("id, storage_key, provider, mime, size_bytes")
+    .eq("owner_id", userId)
+    .eq("content_hash", contentHash)
+    .eq("lifecycle_state", "ready")
+    .is("deleted_at", null)
+    .not("storage_key", "is", null)
+    .in("provider", ["r2", "supabase_storage"])
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data || typeof data.storage_key !== "string") return null;
+  if (!isSupportedProvider(data.provider)) return null;
+  if (typeof data.size_bytes !== "number" || data.size_bytes <= 0) return null;
+  return data as ReusableObject;
+}
+
+// Tạo resource "ready" tái sử dụng object đã có — dùng cho cả quick upload
+// (thả tệp vào explorer) lẫn upload vào draft có sẵn.
+async function completeWithReusedObject(
+  supabase: SupabaseClient,
+  input: {
+    ownerId: string;
+    workspaceId: string;
+    lessonId: string;
+    resourceId?: string;
+    title: string;
+    resourceType: string;
+    originalFilename: string;
+    contentHash: string;
+    source: ReusableObject;
+  },
+): Promise<{ resourceId?: string; error?: string }> {
+  const existingId = input.resourceId;
+  let resourceId: string;
+
+  if (existingId) {
+    resourceId = existingId;
+    const { error } = await supabase
+      .from("resources")
+      .update(buildReusedResourceRow({ ...input }))
+      .eq("id", resourceId);
+    if (error) return { error: error.message };
+  } else {
+    const { data, error } = await supabase
+      .from("resources")
+      .insert(buildReusedResourceRow({ ...input }))
+      .select("id")
+      .single();
+    if (error || !data) return { error: error?.message ?? "Không tạo được tài liệu." };
+    resourceId = data.id;
+  }
+
+  // Phiên bản tệp v1 tham chiếu cùng storage_key (ref-count giữ object sống).
+  const { data: files } = await supabase
+    .from("resource_files")
+    .select("version")
+    .eq("resource_id", resourceId)
+    .order("version", { ascending: false })
+    .limit(1);
+
+  const { error: fileError } = await supabase.from("resource_files").insert(
+    buildReusedResourceFileRow({
+      resourceId,
+      source: input.source,
+      contentHash: input.contentHash,
+      version: (files?.[0]?.version ?? 0) + 1,
+    }),
+  );
+  if (fileError) return { error: fileError.message };
+
+  return { resourceId };
+}
+
 // ---------- Create upload session ----------
 
 type UploadSessionResult = {
@@ -102,6 +191,7 @@ type UploadSessionResult = {
   key?: string;
   video?: boolean;
   mime?: string;
+  duplicate?: boolean;
   error?: string;
 };
 
@@ -123,6 +213,29 @@ export async function createUploadSessionAction(
   }
   if (resource.lifecycle_state !== "draft" && resource.lifecycle_state !== "failed") {
     return { error: "Tài liệu đã có tệp — không thể tải thêm." };
+  }
+
+  // Dedup: tệp giống hệt đã có trong kho → tái sử dụng object, không upload lại.
+  const sha256Raw = String(formData.get("sha256") ?? "").toLowerCase();
+  const contentHash = SHA256_PATTERN.test(sha256Raw) ? sha256Raw : null;
+  if (canDeduplicate({ resourceType: resource.type, sha256: contentHash })) {
+    const source = await findReusableObject(supabase, userId, contentHash!);
+    if (source) {
+      const result = await completeWithReusedObject(supabase, {
+        ownerId: userId,
+        workspaceId: resource.workspace_id ?? "",
+        lessonId: resource.lesson_id ?? "",
+        resourceId: resource.id,
+        title: resource.title,
+        resourceType: resource.type,
+        originalFilename: fileName.trim(),
+        contentHash: contentHash!,
+        source,
+      });
+      if (result.error) return { error: result.error };
+      revalidateResourcePaths(resource);
+      return { duplicate: true, key: source.storage_key };
+    }
   }
 
   return startUploadSession(supabase, userId, resource, fileName, sizeBytes);
@@ -253,6 +366,38 @@ export async function quickUploadSessionAction(
     const lesson = await findOrCreateDefaultLesson(supabase, collection);
     if (typeof lesson !== "string") return lesson;
     targetLessonId = lesson;
+  }
+
+  const sha256Raw = String(formData.get("sha256") ?? "").toLowerCase();
+  const contentHash = SHA256_PATTERN.test(sha256Raw) ? sha256Raw : null;
+
+  // Dedup: chủ sở hữu đã có tệp giống hệt (hash trùng, ready, chưa xóa) →
+  // tạo resource mới tham chiếu object cũ, bỏ qua bước tải lên.
+  if (canDeduplicate({ resourceType, sha256: contentHash })) {
+    const source = await findReusableObject(supabase, userId, contentHash!);
+    if (source) {
+      const result = await completeWithReusedObject(supabase, {
+        ownerId: userId,
+        workspaceId,
+        lessonId: targetLessonId,
+        title: titleFromFileName(fileName),
+        resourceType,
+        originalFilename: fileName.trim(),
+        contentHash: contentHash!,
+        source,
+      });
+      if (result.error || !result.resourceId) {
+        return { error: result.error ?? "Không tạo được tài liệu." };
+      }
+      revalidatePath("/kho");
+      return {
+        duplicate: true,
+        key: source.storage_key,
+        resourceId: result.resourceId,
+        collectionId: targetCollectionId,
+        lessonId: targetLessonId,
+      };
+    }
   }
 
   const { data: resourceRow, error: insertError } = await supabase
