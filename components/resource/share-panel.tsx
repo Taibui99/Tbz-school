@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, Copy, Link2, ShieldX, UserPlus } from "lucide-react";
+import { Check, Copy, Link2, Loader2, ShieldX, UserPlus } from "lucide-react";
 import {
   ensureShareLinkAction,
   grantShareAction,
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/toast";
 
 export interface ShareGrant {
   id: string;
@@ -57,6 +58,9 @@ export function SharePanel({
 }) {
   const [token, setToken] = useState<string | null>(linkToken);
   const [grantList, setGrantList] = useState<ShareGrant[]>(grants);
+  const [linkRevoking, setLinkRevoking] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const pushToast = useToast();
 
   const [linkState, linkAction, linkPending] = useActionState(
     ensureShareLinkAction,
@@ -90,14 +94,39 @@ export function SharePanel({
               type="button"
               variant="ghost"
               size="sm"
+              disabled={linkRevoking}
               onClick={async () => {
-                const fd = new FormData();
-                fd.set("resourceId", resourceId);
-                await revokeShareLinkAction(fd);
-                setToken(null);
+                setLinkRevoking(true);
+                try {
+                  const fd = new FormData();
+                  fd.set("resourceId", resourceId);
+                  const result: ActionResult = await revokeShareLinkAction(fd);
+                  if (result?.error) {
+                    pushToast({
+                      title: "Thu hồi liên kết thất bại",
+                      description: result.error,
+                      variant: "error",
+                    });
+                  } else {
+                    setToken(null);
+                    pushToast({
+                      title: "Đã thu hồi liên kết chia sẻ.",
+                      variant: "success",
+                    });
+                  }
+                } finally {
+                  setLinkRevoking(false);
+                }
               }}
             >
-              <ShieldX aria-hidden="true" />
+              {linkRevoking ? (
+                <Loader2
+                  className="size-4 animate-spin"
+                  aria-hidden="true"
+                />
+              ) : (
+                <ShieldX aria-hidden="true" />
+              )}
               Thu hồi
             </Button>
           )}
@@ -203,17 +232,42 @@ export function SharePanel({
                   type="button"
                   variant="ghost"
                   size="sm"
+                  disabled={revokingId === grant.id}
                   onClick={async () => {
-                    const fd = new FormData();
-                    fd.set("shareId", grant.id);
-                    fd.set("resourceId", resourceId);
-                    await revokeGrantAction(fd);
-                    setGrantList((prev) =>
-                      prev.filter((g) => g.id !== grant.id),
-                    );
+                    setRevokingId(grant.id);
+                    try {
+                      const fd = new FormData();
+                      fd.set("shareId", grant.id);
+                      fd.set("resourceId", resourceId);
+                      const result: ActionResult = await revokeGrantAction(fd);
+                      if (result?.error) {
+                        pushToast({
+                          title: "Thu hồi quyền thất bại",
+                          description: result.error,
+                          variant: "error",
+                        });
+                      } else {
+                        setGrantList((prev) =>
+                          prev.filter((g) => g.id !== grant.id),
+                        );
+                        pushToast({
+                          title: "Đã thu hồi quyền truy cập.",
+                          variant: "success",
+                        });
+                      }
+                    } finally {
+                      setRevokingId(null);
+                    }
                   }}
                 >
-                  <ShieldX aria-hidden="true" />
+                  {revokingId === grant.id ? (
+                    <Loader2
+                      className="size-4 animate-spin"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ShieldX aria-hidden="true" />
+                  )}
                   Thu hồi
                 </Button>
               </li>

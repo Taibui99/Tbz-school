@@ -205,7 +205,7 @@ export default async function ResourceDetailPage({
             collectionId={collectionId}
             lessonId={lessonId}
           />
-          <DeleteResourceDialog resource={resource} />
+          <DeleteResourceDialog resource={resource} workspaceId={id} />
         </div>
       </div>
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Link2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Link2, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   createResourceAction,
   deleteResourceAction,
@@ -27,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { asVoidAction } from "@/lib/form-action";
+import { useToast } from "@/components/ui/toast";
 
 export const TYPE_LABELS: Record<string, string> = {
   pdf: "PDF",
@@ -206,9 +207,17 @@ export function CreateResourceDialog({
   lessonId: string;
 }) {
   const [open, setOpen] = useState(false);
+  const pushToast = useToast();
   const [state, formAction, pending] = useActionState(
-    createResourceAction,
-    {},
+    async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
+      const result = await createResourceAction(_prev, formData);
+      if (result.success) {
+        pushToast({ title: "Đã tạo tài liệu.", variant: "success" });
+        setOpen(false);
+      }
+      return result;
+    },
+    {} as ActionResult,
   );
 
   return (
@@ -238,6 +247,9 @@ export function CreateResourceDialog({
           <ResourceFields state={state} />
           <DialogFooter>
             <Button type="submit" disabled={pending}>
+              {pending && (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              )}
               {pending ? "Đang tạo..." : "Tạo"}
             </Button>
           </DialogFooter>
@@ -267,9 +279,19 @@ export function EditResourceDialog({
   lessonId: string;
 }) {
   const [open, setOpen] = useState(false);
+  const pushToast = useToast();
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
-    updateResourceAction,
-    {},
+    async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
+      const result = await updateResourceAction(_prev, formData);
+      if (result.success) {
+        pushToast({ title: "Đã lưu thay đổi.", variant: "success" });
+        setOpen(false);
+        router.refresh();
+      }
+      return result;
+    },
+    {} as ActionResult,
   );
 
   return (
@@ -305,6 +327,9 @@ export function EditResourceDialog({
           />
           <DialogFooter>
             <Button type="submit" disabled={pending}>
+              {pending && (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              )}
               {pending ? "Đang lưu..." : "Lưu"}
             </Button>
           </DialogFooter>
@@ -316,10 +341,38 @@ export function EditResourceDialog({
 
 export function DeleteResourceDialog({
   resource,
+  workspaceId,
 }: {
   resource: { id: string; title: string };
+  workspaceId?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const pushToast = useToast();
+  const router = useRouter();
+  const [_state, formAction, pending] = useActionState(
+    async (_prev: ActionResult, formData: FormData): Promise<ActionResult> => {
+      const result = await deleteResourceAction(formData);
+      if (result.error) {
+        pushToast({
+          title: "Xóa tài liệu thất bại",
+          description: result.error,
+          variant: "error",
+        });
+      } else if (result.success) {
+        pushToast({
+          title: "Đã xóa tài liệu",
+          description: `"${resource.title}" đã chuyển vào Thùng rác và có thể khôi phục.`,
+          variant: "success",
+        });
+        setOpen(false);
+        router.push(
+          workspaceId ? `/kho?w=${encodeURIComponent(workspaceId)}` : "/kho",
+        );
+      }
+      return result;
+    },
+    {} as ActionResult,
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -343,15 +396,20 @@ export function DeleteResourceDialog({
           <Button
             type="button"
             variant="outline"
+            disabled={pending}
             onClick={() => setOpen(false)}
           >
             Hủy
           </Button>
-          <form action={asVoidAction(deleteResourceAction)}>
+          <form action={formAction}>
             <input type="hidden" name="id" value={resource.id} />
-            <Button type="submit" variant="destructive">
-              <Trash2 aria-hidden="true" />
-              Xóa
+            <Button type="submit" variant="destructive" disabled={pending}>
+              {pending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Trash2 aria-hidden="true" />
+              )}
+              {pending ? "Đang xóa..." : "Xóa"}
             </Button>
           </form>
         </DialogFooter>
