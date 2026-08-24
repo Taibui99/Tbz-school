@@ -17,7 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Tổng quan",
-  description: "Bảng điều khiển và lịch sử hoạt động của bạn trên TBZ School.",
+  description: "Bảng điều khiển và lịch sử hoạt động của bạn trên Tbz cloud.",
 };
 
 const ACTION_LABELS: Record<string, string> = {

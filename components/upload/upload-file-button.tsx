@@ -146,7 +146,7 @@ export function UploadFileButton({
         mode === "version"
           ? "Đã tải phiên bản mới."
           : isYoutubeUpload
-            ? "Video đã được đăng lên kênh TBZ School (unlisted)."
+            ? "Video đã được đăng lên kênh Tbz cloud (unlisted)."
             : "Đã tải tệp lên.",
       );
       router.refresh();
@@ -234,7 +234,7 @@ export function UploadFileButton({
           </Button>
           <p className="text-xs text-muted-foreground">
             {isVideo
-              ? "Video được đăng trực tiếp lên kênh TBZ School (unlisted) — không giới hạn dung lượng."
+              ? "Video được đăng trực tiếp lên kênh Tbz cloud (unlisted) — không giới hạn dung lượng."
               : `Tối đa ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} MB mỗi tệp.`}
           </p>
         </div>

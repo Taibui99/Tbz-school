@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Tài liệu công khai",
-  description: "Tài liệu công khai trên TBZ School.",
+  description: "Tài liệu công khai trên Tbz cloud.",
 };
 
 export default async function PublicResourcePage({
@@ -34,6 +34,7 @@ export default async function PublicResourcePage({
     .eq("visibility", "public")
     .eq("lifecycle_state", "ready")
     .is("deleted_at", null)
+    .is("hidden_at", null)
     .maybeSingle();
   if (!row) notFound();
 

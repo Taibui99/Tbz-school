@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 
 export const metadata: Metadata = {
   title: "Tìm kiếm",
-  description: "Tìm kiếm tài liệu, bộ sưu tập và bài học trên TBZ School.",
+  description: "Tìm kiếm tài liệu, bộ sưu tập và bài học trên Tbz cloud.",
 };
 
 const PAGE_SIZE = 10;

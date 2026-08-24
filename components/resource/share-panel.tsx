@@ -167,7 +167,7 @@ export function SharePanel({
       <div className="mt-5 border-t border-border pt-4">
         <p className="text-sm font-medium">Chia sẻ cho người dùng</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Thêm người dùng bằng email của họ trên TBZ School (quyền xem hoặc
+          Thêm người dùng bằng email của họ trên Tbz cloud (quyền xem hoặc
           chỉnh sửa).
         </p>
         <form action={grantAction} className="mt-3 flex flex-wrap items-end gap-2">

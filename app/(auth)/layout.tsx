@@ -25,7 +25,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <GraduationCap className="size-6" aria-hidden="true" />
           </span>
           <span className="font-heading text-2xl font-bold tracking-tight">
-            TBZ <span className="text-gradient">School</span>
+            Tbz <span className="text-gradient">Cloud</span>
           </span>
         </div>
         <h2 className="font-heading max-w-md text-4xl font-extrabold leading-tight tracking-tight">

@@ -12,7 +12,7 @@ export function SiteFooter() {
                 <GraduationCap className="size-4" aria-hidden="true" />
               </span>
               <span className="font-heading text-lg font-bold tracking-tight">
-                TBZ <span className="text-gradient">School</span>
+                Tbz <span className="text-gradient">Cloud</span>
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -36,6 +36,18 @@ export function SiteFooter() {
               Tìm kiếm
             </Link>
             <Link
+              href="/dieu-khoan"
+              className="transition-colors hover:text-foreground"
+            >
+              Điều khoản
+            </Link>
+            <Link
+              href="/quyen-rieng-tu"
+              className="transition-colors hover:text-foreground"
+            >
+              Quyền riêng tư
+            </Link>
+            <Link
               href="/dang-ky"
               className="font-medium text-primary transition-colors hover:opacity-80"
             >
@@ -43,7 +55,7 @@ export function SiteFooter() {
             </Link>
           </nav>
           <p className="text-xs text-muted-foreground/70">
-            © {new Date().getFullYear()} TBZ School
+            © {new Date().getFullYear()} Tbz cloud
             <span className="mx-1.5" aria-hidden="true">
               ·
             </span>

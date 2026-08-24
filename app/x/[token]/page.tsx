@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Tài liệu chia sẻ",
-  description: "Tài liệu được chia sẻ qua liên kết trên TBZ School.",
+  description: "Tài liệu được chia sẻ qua liên kết trên Tbz cloud.",
 };
 
 export default async function SharedLinkPage({

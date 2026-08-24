@@ -48,7 +48,7 @@ export function YoutubePanel({
         Đăng lên YouTube
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Đưa bài giảng lên kênh TBZ School (unlisted) để phát mượt mà không tốn
+        Đưa bài giảng lên kênh Tbz cloud (unlisted) để phát mượt mà không tốn
         dung lượng lưu trữ.
       </p>
 
@@ -74,8 +74,8 @@ export function YoutubePanel({
             <Button type="submit" disabled={pending}>
               <Play aria-hidden="true" />
               {pending
-                ? "Đang đăng lên kênh TBZ School..."
-                : "Đăng lên kênh TBZ School (unlisted)"}
+                ? "Đang đăng lên kênh Tbz cloud..."
+                : "Đăng lên kênh Tbz cloud (unlisted)"}
             </Button>
             <span className="text-xs text-muted-foreground">
               Kho trung tâm: {connectedEmail ?? "Tài khoản Google"}

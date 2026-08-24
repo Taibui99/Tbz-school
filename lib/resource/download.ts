@@ -14,7 +14,7 @@ export interface DownloadContext {
 
 /**
  * Quy tắc tải về (PRD §6, ARCHITECTURE §17):
- * - Tài liệu ngoài (url/external): không tải qua TBZ School trừ khi
+ * - Tài liệu ngoài (url/external): không tải qua Tbz cloud trừ khi
  *   provider cho phép — hiện tại luôn chặn.
  * - Video đã đăng lên YouTube: phát qua YouTube, không tải file gốc.
  * - Tài liệu dạng tệp: chỉ tải khi lifecycle 'ready', có storage, chưa xóa.

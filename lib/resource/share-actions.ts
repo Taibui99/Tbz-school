@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionResult } from "@/lib/workspace/actions";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -49,6 +50,13 @@ export async function ensureShareLinkAction(
   const supabase = await createClient();
   const userId = await assertOwner(supabase, resourceId);
   if (!userId) return { error: "Bạn không sở hữu tài liệu này." };
+
+  const rl = checkRateLimit(`share-link:${userId}`, 30, 60 * 60 * 1000);
+  if (!rl.ok) {
+    return {
+      error: `Bạn tạo liên kết chia sẻ quá nhanh. Thử lại sau ${Math.ceil(rl.retryAfterSec / 60)} phút.`,
+    };
+  }
 
   const { data: existing } = await supabase
     .from("resource_shares")
@@ -128,6 +136,13 @@ export async function grantShareAction(
   const supabase = await createClient();
   const userId = await assertOwner(supabase, resourceId);
   if (!userId) return { error: "Bạn không sở hữu tài liệu này." };
+
+  const rl = checkRateLimit(`share-grant:${userId}`, 30, 60 * 60 * 1000);
+  if (!rl.ok) {
+    return {
+      error: `Bạn chia sẻ quá nhanh. Thử lại sau ${Math.ceil(rl.retryAfterSec / 60)} phút.`,
+    };
+  }
 
   const admin = createAdminClient();
   const { data: profile } = await admin

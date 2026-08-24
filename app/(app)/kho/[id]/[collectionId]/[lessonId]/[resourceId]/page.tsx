@@ -153,7 +153,7 @@ export default async function ResourceDetailPage({
     resource.type === "video" ? await getGoogleConnection() : null;
 
   const downloadReasonLabel: Record<string, string> = {
-    external: "Tài liệu ngoài không tải được qua TBZ School.",
+    external: "Tài liệu ngoài không tải được qua Tbz cloud.",
     "not-ready": "Tài liệu chưa sẵn sàng để tải.",
     "no-file": "Tài liệu chưa có tệp (chờ tải lên).",
     deleted: "Tài liệu đã bị xóa.",

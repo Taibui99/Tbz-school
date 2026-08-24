@@ -4,12 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { validateCredentials } from "@/lib/auth/validate";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { signOutIfSuspended } from "@/lib/auth/guards";
 
 export type AuthResult = {
   error?: string;
   success?: string;
   fieldErrors?: Record<string, string>;
 };
+
+const LOGIN_ATTEMPTS_LIMIT = 10;
+const LOGIN_ATTEMPTS_WINDOW_MS = 15 * 60 * 1000;
 
 function getRedirectPath(formData: FormData): string {
   const redirectTo = String(formData.get("redirect") ?? "");
@@ -70,13 +75,29 @@ export async function signInAction(
     return { fieldErrors };
   }
 
+  const normalizedEmail = email.trim().toLowerCase();
+  const rl = checkRateLimit(
+    `login:${normalizedEmail}`,
+    LOGIN_ATTEMPTS_LIMIT,
+    LOGIN_ATTEMPTS_WINDOW_MS,
+  );
+  if (!rl.ok) {
+    return {
+      error: `Đăng nhập thất bại quá nhiều lần. Thử lại sau ${Math.ceil(rl.retryAfterSec / 60)} phút.`,
+    };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
+    email: normalizedEmail,
     password,
   });
 
   if (error) return { error: error.message };
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) await signOutIfSuspended(supabase, user.id, "/dang-nhap");
   redirect(getRedirectPath(formData));
 }
 
@@ -94,6 +115,17 @@ export async function forgotPasswordAction(
 
   const emailError = validateCredentials({ email, password: "xxxxxx" }).email;
   if (emailError) return { fieldErrors: { email: emailError } };
+
+  const rl = checkRateLimit(
+    `forgot:${email.trim().toLowerCase()}`,
+    5,
+    15 * 60 * 1000,
+  );
+  if (!rl.ok) {
+    return {
+      error: `Bạn đã yêu cầu quá nhiều lần. Thử lại sau ${Math.ceil(rl.retryAfterSec / 60)} phút.`,
+    };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {

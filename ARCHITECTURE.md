@@ -1,4 +1,4 @@
-# TBZ School — Architecture
+# Tbz cloud — Architecture
 
 ## 1. High-level architecture
 
@@ -290,7 +290,7 @@ Store:
 - visibility;
 - owner relationships.
 
-External resources may not be downloadable through TBZ School unless the provider explicitly permits it.
+External resources may not be downloadable through Tbz cloud unless the provider explicitly permits it.
 
 ## 18. Security requirements
 

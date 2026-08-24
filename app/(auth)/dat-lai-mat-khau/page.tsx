@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Đặt lại mật khẩu",
-  description: "Đặt mật khẩu mới cho tài khoản TBZ School.",
+  description: "Đặt mật khẩu mới cho tài khoản Tbz cloud.",
 };
 
 export default async function ResetPasswordPage() {

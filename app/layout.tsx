@@ -26,8 +26,8 @@ const baloo = Baloo_2({
 
 export const metadata: Metadata = {
   title: {
-    default: "TBZ School",
-    template: "%s · TBZ School",
+    default: "Tbz cloud",
+    template: "%s · Tbz cloud",
   },
   description:
     "Nền tảng lưu trữ, tổ chức và tương tác tài liệu học tập: Workspace → Collection → Lesson → Resource.",

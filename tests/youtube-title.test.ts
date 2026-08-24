@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { buildYoutubeVideoTitle } from "@/lib/youtube/title";
 
 describe("buildYoutubeVideoTitle", () => {
-  it("định dạng [Tên | TBZ School | tên file]", () => {
+  it("định dạng [Tên | Tbz cloud | tên file]", () => {
     expect(
       buildYoutubeVideoTitle({
         fullName: "Nguyễn Văn A",
         originalFilename: "bai giang ham so.mp4",
       }),
-    ).toBe("[Nguyễn Văn A | TBZ School | bai giang ham so.mp4]");
+    ).toBe("[Nguyễn Văn A | Tbz cloud | bai giang ham so.mp4]");
   });
 
   it("fallback tên file sang tên tài liệu khi thiếu original_filename", () => {
@@ -18,7 +18,7 @@ describe("buildYoutubeVideoTitle", () => {
         originalFilename: "",
         fallbackTitle: "Hàm số",
       }),
-    ).toBe("[A | TBZ School | Hàm số]");
+    ).toBe("[A | Tbz cloud | Hàm số]");
   });
 
   it("dùng 'User' khi thiếu họ tên", () => {
@@ -27,11 +27,11 @@ describe("buildYoutubeVideoTitle", () => {
         fullName: "",
         originalFilename: "video.mp4",
       }),
-    ).toBe("[User | TBZ School | video.mp4]");
+    ).toBe("[User | Tbz cloud | video.mp4]");
   });
 
   it("dùng 'Video' khi thiếu mọi thông tin", () => {
-    expect(buildYoutubeVideoTitle({})).toBe("[User | TBZ School | Video]");
+    expect(buildYoutubeVideoTitle({})).toBe("[User | Tbz cloud | Video]");
   });
 
   it("cắt tối đa 100 ký tự", () => {

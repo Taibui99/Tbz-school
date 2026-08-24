@@ -24,6 +24,7 @@ import {
   canDeduplicate,
   type ReusableObject,
 } from "@/lib/upload/dedup";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -205,6 +206,13 @@ export async function createUploadSessionAction(
   const supabase = await createClient();
   const userId = await requireUser(supabase);
   if (!userId) return { error: "Chưa đăng nhập." };
+
+  const rl = checkRateLimit(`upload:${userId}`, 40, 60 * 60 * 1000);
+  if (!rl.ok) {
+    return {
+      error: `Bạn tạo phiên tải lên quá nhanh. Thử lại sau ${Math.ceil(rl.retryAfterSec / 60)} phút.`,
+    };
+  }
 
   const resource = await loadOwnedResource(supabase, userId, resourceId);
   if (!resource) return { error: "Tài liệu không tồn tại." };
@@ -728,7 +736,7 @@ async function finalizeYoutubeUpload({
   if (updateError) return { error: updateError.message };
 
   revalidateResourcePaths(resource);
-  return { success: "Video đã được đăng lên kênh TBZ School (unlisted)." };
+  return { success: "Video đã được đăng lên kênh Tbz cloud (unlisted)." };
 }
 
 async function fetchYoutubeVideoId(

@@ -13,7 +13,7 @@ import type {
 
 export const metadata: Metadata = {
   title: "Kho của tôi",
-  description: "Quản lý tài liệu học tập của bạn trên TBZ School.",
+  description: "Quản lý tài liệu học tập của bạn trên Tbz cloud.",
 };
 
 const UUID_PATTERN =

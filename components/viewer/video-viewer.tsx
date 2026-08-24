@@ -100,7 +100,7 @@ export function VideoViewer({
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2">
           <p className="text-xs text-muted-foreground">
             Video phát qua YouTube (unlisted) — không tốn dung lượng lưu trữ của
-            TBZ School.
+            Tbz cloud.
           </p>
         </div>
       </div>

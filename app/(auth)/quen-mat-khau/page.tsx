@@ -10,7 +10,7 @@ import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 
 export const metadata: Metadata = {
   title: "Quên mật khẩu",
-  description: "Đặt lại mật khẩu TBZ School.",
+  description: "Đặt lại mật khẩu Tbz cloud.",
 };
 
 export default function ForgotPasswordPage() {

@@ -10,7 +10,7 @@ import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata: Metadata = {
   title: "Đăng nhập",
-  description: "Đăng nhập vào TBZ School.",
+  description: "Đăng nhập vào Tbz cloud.",
 };
 
 export default async function LoginPage({
@@ -32,6 +32,7 @@ export default async function LoginPage({
         <LoginForm
           redirectTo={redirectTo}
           invalidLink={error === "invalid-link"}
+          suspended={error === "suspended"}
         />
       </CardContent>
     </Card>

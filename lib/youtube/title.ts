@@ -12,5 +12,5 @@ export function buildYoutubeVideoTitle(input: {
     (input.originalFilename ?? "").trim() ||
     (input.fallbackTitle ?? "").trim() ||
     "Video";
-  return `[${name} | TBZ School | ${file}]`.slice(0, YOUTUBE_TITLE_MAX);
+  return `[${name} | Tbz cloud | ${file}]`.slice(0, YOUTUBE_TITLE_MAX);
 }

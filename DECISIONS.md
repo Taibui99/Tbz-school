@@ -1,4 +1,4 @@
-# TBZ School — Architecture Decision Record
+# Tbz cloud — Architecture Decision Record
 
 This file records important decisions. Do not silently reverse an accepted decision.
 
@@ -6,10 +6,19 @@ This file records important decisions. Do not silently reverse an accepted decis
 Status: Accepted
 
 Decision:
-TBZ School is a learning-resource storage and interaction platform, not a conventional LMS.
+Tbz cloud is a learning-resource storage and interaction platform, not a conventional LMS.
 
 Reason:
 The primary value is organizing, storing, opening, annotating, and sharing learning resources.
+
+## ADR-028 — Tên thương hiệu chính thức
+Status: Accepted (2026-08-24)
+
+Decision:
+Tên chính thức của hệ thống là **Tbz cloud** (trước đây tạm dùng "TBZ School"). Toàn bộ UI, metadata, tiêu đề video YouTube và tài liệu dùng tên mới. Tên kỹ thuật không đổi: package `tbz-school`, thư mục dự án, repository GitHub.
+
+Reason:
+Chủ dự án xác nhận tên chính thức khi chuẩn bị ra mắt.
 
 ## ADR-002 — Core hierarchy
 Status: Accepted
@@ -40,13 +49,22 @@ Reason:
 Integrated auth/session management with PostgreSQL/RLS.
 
 ## ADR-005 — Large-file storage
-Status: Accepted
+Status: Amended (ADR-027) — R2 deferred
 
 Decision:
 Use Cloudflare R2 as the primary large-file object storage.
 
 Reason:
 S3-compatible API, useful free tier, and Internet egress is currently free.
+
+## ADR-027 — Supabase Storage là provider production; R2 hoãn lại
+Status: Accepted (2026-08-24)
+
+Decision:
+Supabase Storage là storage duy nhất cho môi trường production hiện tại. R2 bị hoãn vô thời hạn vì yêu cầu thẻ tín dụng để kích hoạt (người vận hành không có). Nếu sau này vượt 1 GB free tier, phương án không cần thẻ là Backblaze B2 (10 GB free, S3-compatible) — thêm provider mới qua abstraction sẵn có mà không đổi product logic.
+
+Reason:
+Video đã chuyển lên YouTube (ADR-024) nên không còn "large file" trong object storage. Tệp thường giới hạn 50 MB/file + 250 MB/user (ADR-022) — nằm gọn trong hạn mức Supabase free (1 GB, 50 MB/file). Toàn bộ hệ thống đang chạy ổn định trên supabase_storage.
 
 ## ADR-006 — Small-file/fallback storage
 Status: Accepted
@@ -151,7 +169,7 @@ Video là thứ ngốn dung lượng nhất (1 bài giảng 100–500 MB, vượ
 Status: Accepted (Phase 32)
 
 Decision:
-**Mô hình kho video trung tâm:** account Google của admin (`ADMIN_EMAILS`) là nơi lưu video của **toàn web**. Admin kết nối 1 lần (OAuth 2.0, scope `https://www.googleapis.com/auth/youtube.upload`, `access_type=offline`, `prompt=consent`); refresh token lưu server-side trong bảng `google_oauth` (1 dòng `id=1`, RLS không policy — chỉ service role). Mọi user sở hữu video đều bấm "Đăng lên kênh TBZ School (unlisted)" → server: kiểm tra quyền → tạo resumable session (`initiateResumableVideoUpload`) → **client PUT thẳng bytes tới session URL** (không qua server, không giới hạn dung lượng, không tính quota/user) → đọc `videoId` → gán `youtube_id` + `ready`. Video không còn lưu vào R2 nữa (bỏ `MAX_FILE_SIZE_BYTES` 50 MB cho video). Tiêu đề video: `[<họ tên user> | TBZ School | <original_filename>]` (≤100 ký tự). **Không dùng playlist** vì YouTube giới hạn ~200 playlist/kênh. Chỉ admin được kết nối/ngắt kết nối tài khoản trung tâm; người khác bị chặn ở API lẫn UI.
+**Mô hình kho video trung tâm:** account Google của admin (`ADMIN_EMAILS`) là nơi lưu video của **toàn web**. Admin kết nối 1 lần (OAuth 2.0, scope `https://www.googleapis.com/auth/youtube.upload`, `access_type=offline`, `prompt=consent`); refresh token lưu server-side trong bảng `google_oauth` (1 dòng `id=1`, RLS không policy — chỉ service role). Mọi user sở hữu video đều bấm "Đăng lên kênh Tbz cloud (unlisted)" → server: kiểm tra quyền → tạo resumable session (`initiateResumableVideoUpload`) → **client PUT thẳng bytes tới session URL** (không qua server, không giới hạn dung lượng, không tính quota/user) → đọc `videoId` → gán `youtube_id` + `ready`. Video không còn lưu vào R2 nữa (bỏ `MAX_FILE_SIZE_BYTES` 50 MB cho video). Tiêu đề video: `[<họ tên user> | Tbz cloud | <original_filename>]` (≤100 ký tự). **Không dùng playlist** vì YouTube giới hạn ~200 playlist/kênh. Chỉ admin được kết nối/ngắt kết nối tài khoản trung tâm; người khác bị chặn ở API lẫn UI.
 
 Reason:
 User dùng 1 account Google cá nhân làm "ổ cứng" cho toàn web — đơn giản, miễn phí, không giới hạn dung lượng. Video unlisted nên chỉ ai có link tài liệu trong app mới xem được; tổ chức thật nằm ở cây workspace→collection→lesson (mỗi tài liệu 1 link). Playlist bỏ vì không phản ánh được cây phân cấp (playlist phẳng) và chạm trần 200/kênh khi user đông. Token tuyệt đối không vào client; `google_oauth` không có policy RLS nào. OAuth consent screen đã **Publish lên production** — refresh token tồn tại vĩnh viễn (trước đó chế độ Testing giới hạn token 7 ngày); admin đã ngắt/kết nối lại một lần để lấy token production. Scope `youtube.upload` nhạy cảm → app unverified vẫn dùng được cho ≤100 tài khoản test, chỉ admin kết nối nên không cần verification của Google.

@@ -12,9 +12,11 @@ import { Label } from "@/components/ui/label";
 export function LoginForm({
   redirectTo,
   invalidLink,
+  suspended,
 }: {
   redirectTo?: string;
   invalidLink?: boolean;
+  suspended?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(signInAction, {});
 
@@ -22,6 +24,15 @@ export function LoginForm({
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="redirect" value={redirectTo ?? "/"} />
 
+      {suspended && (
+        <Alert variant="destructive">
+          <AlertTitle>Tài khoản đã bị khóa</AlertTitle>
+          <AlertDescription>
+            Tài khoản của bạn đã bị quản trị viên khóa. Liên hệ hỗ trợ nếu bạn
+            cho rằng đây là nhầm lẫn.
+          </AlertDescription>
+        </Alert>
+      )}
       {invalidLink && (
         <Alert variant="destructive">
           <AlertTitle>Liên kết không hợp lệ</AlertTitle>

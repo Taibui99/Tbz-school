@@ -25,8 +25,8 @@ export async function SiteHeader() {
             <GraduationCap className="size-5" aria-hidden="true" />
           </span>
           <span className="font-heading text-lg leading-none font-bold tracking-tight">
-            TBZ{" "}
-            <span className="text-gradient">School</span>
+            Tbz{" "}
+            <span className="text-gradient">Cloud</span>
           </span>
         </Link>
         <nav

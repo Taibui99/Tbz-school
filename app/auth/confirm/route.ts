@@ -1,6 +1,7 @@
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { signOutIfSuspended } from "@/lib/auth/guards";
 
 function safeNextPath(value: string | null): string {
   if (!value) return "/ho-so";
@@ -32,9 +33,12 @@ export async function GET(request: NextRequest) {
         token_hash: tokenHash as string,
       });
 
-  if (result.error) {
+  if (result.error || !result.data.user) {
     return NextResponse.redirect(invalidLinkUrl);
   }
+
+  const loginUrl = new URL("/dang-nhap", request.url).toString();
+  await signOutIfSuspended(supabase, result.data.user.id, loginUrl);
 
   return NextResponse.redirect(new URL(next, request.url));
 }

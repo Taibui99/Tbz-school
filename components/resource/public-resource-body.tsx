@@ -36,7 +36,7 @@ function formatDate(value: string | null): string {
 }
 
 const DOWNLOAD_REASON: Record<string, string> = {
-  external: "Tài liệu ngoài không tải được qua TBZ School.",
+  external: "Tài liệu ngoài không tải được qua Tbz cloud.",
   "not-ready": "Tài liệu chưa sẵn sàng để tải.",
   "no-file": "Tài liệu chưa có tệp.",
   deleted: "Tài liệu đã bị xóa.",
@@ -86,7 +86,7 @@ export function PublicResourceBody({
       {owner && (
         <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">
-            {owner.full_name ?? "Người dùng TBZ"}
+            {owner.full_name ?? "Người dùng Tbz"}
           </span>
           <span>đăng tải</span>
         </p>
@@ -134,7 +134,7 @@ export function PublicResourceBody({
       <section className="mt-6 glass-panel rounded-2xl p-4">
         <h2 className="text-sm font-medium">Báo cáo tài liệu</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Thấy nội dung không phù hợp? Báo cáo để đội ngũ TBZ School xem xét.
+          Thấy nội dung không phù hợp? Báo cáo để đội ngũ Tbz cloud xem xét.
         </p>
         <div className="mt-3 max-w-md">
           <ReportForm resourceId={resource.id} />

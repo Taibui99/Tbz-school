@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 
 export const metadata: Metadata = {
   title: "Khám phá",
-  description: "Khám phá tài liệu học tập công khai trên TBZ School.",
+  description: "Khám phá tài liệu học tập công khai trên Tbz cloud.",
 };
 
 const PAGE_SIZE = 12;
@@ -53,6 +53,7 @@ export default async function ExplorePage({
     .eq("visibility", "public")
     .eq("lifecycle_state", "ready")
     .is("deleted_at", null)
+    .is("hidden_at", null)
     .order("created_at", { ascending: false });
 
   let countQuery = supabase
@@ -60,7 +61,8 @@ export default async function ExplorePage({
     .select("id", { count: "exact", head: true })
     .eq("visibility", "public")
     .eq("lifecycle_state", "ready")
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .is("hidden_at", null);
 
   if (q) {
     query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
@@ -103,7 +105,7 @@ export default async function ExplorePage({
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
       <PageHeader
         title="Khám phá"
-        description="Tài liệu học tập công khai từ cộng đồng TBZ School."
+        description="Tài liệu học tập công khai từ cộng đồng Tbz cloud."
       />
 
       <form
@@ -182,7 +184,7 @@ export default async function ExplorePage({
                   </h2>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {ownerById.get(row.owner_id)?.full_name ?? "Người dùng TBZ"}
+                  {ownerById.get(row.owner_id)?.full_name ?? "Người dùng Tbz"}
                   {" · "}
                   {formatDate(row.created_at)}
                 </div>

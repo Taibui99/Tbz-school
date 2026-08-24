@@ -1,4 +1,4 @@
-# TBZ School — Master Task List
+# Tbz cloud — Master Task List
 
 Status values:
 - `[ ]` not started
@@ -12,7 +12,7 @@ Do not mark a task complete until its acceptance criteria pass.
 ---
 
 ## PHASE 0 — Product and repository preparation
-- [ ] Confirm basic branding (tên "TBZ School" + giao diện tiếng Việt tạm dùng, chờ xác nhận)
+- [x] Confirm basic branding — tên chính thức **Tbz cloud** (xác nhận bởi chủ dự án 24/08/2026), giao diện tiếng Việt
 - [x] Add README
 - [x] Add project docs
 - [x] Define development/staging/production conventions (AGENTS.md, .env.example, env validation)
@@ -289,16 +289,16 @@ Acceptance: concurrent uploads cannot bypass quota.
 - [ ] Retention policy
 
 ## PHASE 22 — Admin/moderation
-- [ ] Admin role
-- [ ] Admin dashboard
-- [ ] User management
-- [ ] Resource management
-- [ ] Public moderation
-- [ ] Reports queue
-- [ ] Suspend/restore user
-- [ ] Hide/restore resource
-- [ ] Storage metrics
-- [ ] Audit trail
+- [x] Admin role
+- [x] Admin dashboard
+- [x] User management
+- [x] Resource management
+- [x] Public moderation
+- [x] Reports queue
+- [x] Suspend/restore user
+- [x] Hide/restore resource
+- [x] Storage metrics
+- [x] Audit trail
 
 ## PHASE 23 — Security hardening
 - [ ] RLS audit
@@ -307,20 +307,20 @@ Acceptance: concurrent uploads cannot bypass quota.
 - [ ] Signed URL audit
 - [ ] Upload validation audit
 - [ ] Filename/path safety
-- [ ] Rate limiting
+- [x] Rate limiting (in-memory fixed-window, lib/security/rate-limit.ts)
 - [ ] Abuse controls
-- [ ] Security headers
+- [x] Security headers (next.config.ts: CSP + nosniff + referrer-policy + frame-ancestors)
 - [ ] Dependency audit
 - [ ] Error redaction
 
 ## PHASE 24 — Copyright/reporting
-- [ ] Report form
-- [ ] Copyright category
-- [ ] Admin review flow
-- [ ] Hide pending resources
+- [x] Report form
+- [x] Copyright category
+- [x] Admin review flow
+- [x] Hide pending resources
 - [ ] Audit log
-- [ ] Terms/privacy links
-- [ ] Content policy
+- [x] Terms/privacy links
+- [x] Content policy
 
 ## PHASE 25 — Performance
 - [ ] Query profiling
@@ -376,19 +376,19 @@ Acceptance: CI passes from a clean checkout.
 
 ## PHASE 28 — Deployment
 - [ ] Production Supabase project
-- [ ] Production R2 bucket
+- [ ] Production R2 bucket — HOÃN: không khả thi (cần thẻ tín dụng), xem ADR-027; production dùng Supabase Storage, dự phòng tương lai là Backblaze B2
 - [ ] Vercel project
 - [ ] Production environment variables
 - [ ] Domain if available
 - [ ] Database migration deployment
 - [ ] Storage CORS
 - [ ] Secure signed URLs
-- [ ] CI/CD
+- [x] CI/CD
 - [ ] Production smoke test
 
 ## PHASE 29 — Backup/recovery
-- [ ] Database export procedure
-- [ ] Recovery documentation
+- [x] Database export procedure
+- [x] Recovery documentation
 - [ ] Storage recovery strategy
 - [ ] Configuration backup
 - [ ] Disaster recovery checklist
@@ -430,7 +430,7 @@ Acceptance: CI passes from a clean checkout.
   - [x] UI: `youtube-panel.tsx` trên trang chi tiết video (kết nối / đăng lên YouTube) + thẻ kết nối trên `/ho-so`
   - [x] Tests youtube-client (+11), typecheck/lint/build OK; smoke `/ho-so` + detail video hiện panel đúng trạng thái
   - [x] **Mô hình kho video trung tâm** (ADR-023): account Google của admin = nơi lưu video toàn web; mọi user sở hữu video đều đăng được vào kênh trung tâm (unlisted)
-  - [x] Tiêu đề video trên YouTube: `[<họ tên user> | TBZ School | <original_filename>]` (`lib/youtube/title.ts`, cắt ≤100 ký tự) — **không dùng playlist** (giới hạn ~200 playlist/kênh)
+  - [x] Tiêu đề video trên YouTube: `[<họ tên user> | Tbz cloud | <original_filename>]` (`lib/youtube/title.ts`, cắt ≤100 ký tự) — **không dùng playlist** (giới hạn ~200 playlist/kênh)
   - [x] Admin-only connect: `ADMIN_EMAILS` env + `isAdminUser()`; `/api/auth/google/start` + `/callback` chặn user thường; UI "Kết nối Google" chỉ hiện cho admin (`/ho-so`, `youtube-panel`)
   - [x] **Đăng nhập bằng Google**: nút Google trên `/dang-nhap` + `/dang-ky` (Supabase OAuth provider); trigger `handle_new_user` lấy `full_name` từ metadata — migration `20260818000001_phase32_google_login.sql` đã push
   - [x] Tests youtube-title (+5), isAdminUser, typecheck/lint/build OK; smoke: admin connect → Google consent, user thường → bị chặn, `/ho-so` card chỉ admin thấy

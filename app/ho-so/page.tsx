@@ -16,7 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Hồ sơ",
-  description: "Quản lý thông tin tài khoản TBZ School.",
+  description: "Quản lý thông tin tài khoản Tbz cloud.",
 };
 
 export default async function ProfilePage({
@@ -88,8 +88,8 @@ export default async function ProfilePage({
             <CardHeader>
               <CardTitle>Đăng video lên YouTube</CardTitle>
               <CardDescription>
-                Kết nối tài khoản Google quản lý kho video trung tâm của TBZ
-                School.
+                Kết nối tài khoản Google quản lý kho video trung tâm của Tbz
+                cloud.
               </CardDescription>
             </CardHeader>
             <CardContent>

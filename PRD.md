@@ -1,8 +1,8 @@
-# TBZ School — Product Requirements Document
+# Tbz cloud — Product Requirements Document
 
 ## 1. Product vision
 
-TBZ School is a student-focused learning-resource platform.
+Tbz cloud is a student-focused learning-resource platform.
 
 Its core purpose is to let students:
 - store learning resources;
@@ -203,7 +203,7 @@ Primary architecture:
 - Supabase Auth: authentication.
 - Cloudflare R2: large-file storage.
 - Supabase Storage: small files or fallback where appropriate.
-- External providers/URLs: optional references, not necessarily owned by TBZ School.
+- External providers/URLs: optional references, not necessarily owned by Tbz cloud.
 
 Large files must be uploaded directly to storage using signed/multipart flows rather than passing through the application server.
 

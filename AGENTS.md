@@ -10,9 +10,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- BEGIN:tbz-agent-instructions -->
 
-# TBZ School — Agent Instructions
+# Tbz cloud — Agent Instructions
 
-You are a coding agent working on TBZ School.
+You are a coding agent working on Tbz cloud.
 
 ## Mandatory reading
 
@@ -26,7 +26,7 @@ Then inspect the existing repository.
 
 ## Mission
 
-Build TBZ School as specified by the project documents.
+Build Tbz cloud as specified by the project documents.
 
 The most important product concerns are:
 1. safe and flexible resource storage;

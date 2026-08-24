@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/workspace/actions";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 const REPORT_CATEGORIES = [
   "copyright",
@@ -31,6 +32,13 @@ export async function reportResourceAction(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Chưa đăng nhập." };
+
+  const rl = checkRateLimit(`report:${user.id}`, 10, 60 * 60 * 1000);
+  if (!rl.ok) {
+    return {
+      error: `Bạn đã gửi quá nhiều báo cáo. Thử lại sau ${Math.ceil(rl.retryAfterSec / 60)} phút.`,
+    };
+  }
 
   const { data: resource } = await supabase
     .from("resources")

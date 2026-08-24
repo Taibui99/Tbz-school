@@ -10,7 +10,7 @@ import { RegisterForm } from "@/components/auth/register-form";
 
 export const metadata: Metadata = {
   title: "Đăng ký",
-  description: "Tạo tài khoản TBZ School.",
+  description: "Tạo tài khoản Tbz cloud.",
 };
 
 export default async function RegisterPage({
