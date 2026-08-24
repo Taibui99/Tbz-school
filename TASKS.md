@@ -380,11 +380,11 @@ Acceptance: CI passes from a clean checkout.
 - [ ] Vercel project
 - [ ] Production environment variables
 - [ ] Domain if available
-- [ ] Database migration deployment
+- [x] Database migration deployment — Phase 36 áp qua SQL Editor (schema_migrations CLI không link; migration mới cần chạy tay hoặc link lại project)
 - [ ] Storage CORS
 - [ ] Secure signed URLs
 - [x] CI/CD
-- [ ] Production smoke test
+- [x] Production smoke test — 15/15 PASS 24/08/2026 (anon+authed, headers, redirects, admin gate, brand)
 
 ## PHASE 29 — Backup/recovery
 - [x] Database export procedure
