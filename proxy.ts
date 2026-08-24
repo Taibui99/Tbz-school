@@ -1,84 +1,25 @@
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-const PROTECTED_PATHS = ["/ho-so", "/kho"];
-const AUTH_PATHS = ["/dang-nhap", "/dang-ky", "/quen-mat-khau"];
+/**
+ * Chặn sớm các khu vực quản trị đối với visitor chưa có phiên Supabase.
+ * Việc xác thực quyền admin vẫn do layout/page phía server kiểm tra.
+ */
+export function proxy(request: NextRequest) {
+  const cookies = request.headers.get("cookie") ?? "";
+  const hasSession = cookies
+    .split(";")
+    .some((c) => c.trim().startsWith("sb-") && c.includes("auth-token"));
 
-export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-  const isProtected = PROTECTED_PATHS.some((path) =>
-    pathname.startsWith(path),
-  );
-  const isAuthPage = AUTH_PATHS.some((path) => pathname.startsWith(path));
-
-  if (!user && isProtected) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dang-nhap";
-    url.search = "";
-    url.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(url);
+  if (!hasSession) {
+    const loginUrl = new URL("/dang-nhap", request.url);
+    loginUrl.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  if (user && isAuthPage) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
-
-  if (user && pathname.startsWith("/kho/")) {
-    const segments = pathname.split("/");
-    const workspaceId = segments[2];
-    if (
-      workspaceId &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        workspaceId,
-      )
-    ) {
-      return new NextResponse(null, { status: 404 });
-    }
-    const { data: workspace } = await supabase
-      .from("workspaces")
-      .select("id")
-      .eq("id", workspaceId)
-      .maybeSingle();
-    if (!workspace) {
-      return new NextResponse(null, { status: 404 });
-    }
-  }
-
-  return supabaseResponse;
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/admin/:path*", "/admin"],
 };
