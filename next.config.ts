@@ -6,7 +6,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.supabase.co https://i.ytimg.com https://yt3.ggpht.com https://lh3.googleusercontent.com",
   "media-src 'self' blob: https://*.supabase.co",
-  "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+  "frame-src https://*.supabase.co https://www.youtube-nocookie.com https://www.youtube.com",
   "worker-src 'self' blob:",
   "connect-src 'self' blob: https://*.supabase.co wss://*.supabase.co https://www.googleapis.com https://oauth2.googleapis.com",
   "font-src 'self' data:",
