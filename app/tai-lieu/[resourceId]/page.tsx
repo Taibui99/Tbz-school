@@ -144,6 +144,12 @@ export default async function ResourceViewPage({
     deleted_at: resource.deleted_at,
     original_filename: resource.original_filename,
   });
+
+  const proxyViewer =
+    viewer.kind === "pdf" && viewer.url && resource.storage_key
+      ? { ...viewer, url: `/api/proxy/file?key=${encodeURIComponent(resource.storage_key)}` }
+      : viewer;
+
   const downloadUrl =
     downloadVerdict.allowed && viewer.kind !== "url" && "url" in viewer
       ? viewer.url
@@ -258,7 +264,7 @@ export default async function ResourceViewPage({
           )}
 
           <ResourceArea
-            viewer={viewer}
+            viewer={proxyViewer}
             resourceId={resource.id}
             downloadUrl={downloadUrl}
           />
