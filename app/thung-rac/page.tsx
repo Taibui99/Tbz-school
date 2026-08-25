@@ -23,6 +23,13 @@ export default async function TrashPage() {
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });
 
+  const { data: trashedFolders } = await supabase
+    .from("folders")
+    .select("id, name, deleted_at")
+    .eq("owner_id", user.id)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10">
       <PageHeader
@@ -38,6 +45,11 @@ export default async function TrashPage() {
             type: item.type,
             deleted_at: item.deleted_at,
             size_bytes: item.size_bytes,
+          }))}
+          folderItems={(trashedFolders ?? []).map((f) => ({
+            id: f.id,
+            name: f.name,
+            deleted_at: f.deleted_at,
           }))}
           canEmpty={(items?.length ?? 0) > 0}
         />

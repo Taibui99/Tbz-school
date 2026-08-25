@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, Gauge } from "lucide-react";
+import { Bookmark, Download, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const STORAGE_PREFIX = "tbz:video";
 const SPEEDS = [0.5, 1, 1.25, 1.5, 2];
+
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 export function VideoViewer({
   src,
@@ -23,6 +29,7 @@ export function VideoViewer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [speed, setSpeed] = useState(1);
   const [resumed, setResumed] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -54,6 +61,7 @@ export function VideoViewer({
     let lastReported = -1;
     const onTime = () => {
       const floored = Math.floor(video.currentTime);
+      setCurrentTime(floored);
       if (floored !== lastReported) {
         lastReported = floored;
         onTimeChange?.(floored);
@@ -138,16 +146,30 @@ export function VideoViewer({
             ))}
           </div>
         </div>
-        {downloadUrl && (
+        <div className="flex items-center gap-1.5">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            render={<a href={downloadUrl} download />}
+            onClick={() => {
+              const el = document.getElementById("annotation-section");
+              el?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            title={`Đánh dấu tại ${formatTime(currentTime)}`}
           >
-            <Download aria-hidden="true" />
-            Tải video
+            <Bookmark aria-hidden="true" />
+            <span className="hidden sm:inline">Đánh dấu</span>
           </Button>
-        )}
+          {downloadUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              render={<a href={downloadUrl} download />}
+            >
+              <Download aria-hidden="true" />
+              Tải video
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

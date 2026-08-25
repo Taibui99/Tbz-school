@@ -8,9 +8,11 @@ import {
   permanentDeleteResourceAction,
 } from "@/lib/resource/trash-actions";
 import { restoreResourceAction } from "@/lib/resource/actions";
+import { purgeFolderAction, restoreFolderAction } from "@/lib/folders/actions";
 import { TypeIcon } from "@/components/resource/type-icon";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Folder } from "lucide-react";
 
 export type TrashItem = {
   id: string;
@@ -18,6 +20,12 @@ export type TrashItem = {
   type: string;
   deleted_at: string | null;
   size_bytes: number | null;
+};
+
+export type TrashFolderItem = {
+  id: string;
+  name: string;
+  deleted_at: string | null;
 };
 
 function formatDate(value: string | null): string {
@@ -37,9 +45,11 @@ function formatBytes(bytes: number | null): string {
 
 export function TrashManager({
   items,
+  folderItems = [],
   canEmpty,
 }: {
   items: TrashItem[];
+  folderItems?: TrashFolderItem[];
   canEmpty: boolean;
 }) {
   const router = useRouter();
@@ -47,6 +57,27 @@ export function TrashManager({
     null,
   );
   const [isPending, startTransition] = useTransition();
+
+  function runFolderRestore(id: string) {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", id);
+      const res = await restoreFolderAction(fd);
+      setResult(res);
+      router.refresh();
+    });
+  }
+
+  function runFolderPurge(id: string, name: string) {
+    if (!window.confirm(`Xóa vĩnh viễn thư mục “${name}” và toàn bộ nội dung? Không thể hoàn tác.`)) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", id);
+      const res = await purgeFolderAction(fd);
+      setResult(res);
+      router.refresh();
+    });
+  }
 
   function run(formData: FormData, confirmMessage?: string) {
     if (confirmMessage && !window.confirm(confirmMessage)) return;
@@ -86,7 +117,52 @@ export function TrashManager({
         </Alert>
       )}
 
-      {items.length === 0 ? (
+      {folderItems.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {folderItems.map((folder) => (
+            <li
+              key={folder.id}
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5"
+            >
+              <Folder className="size-4 shrink-0 text-amber-400" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {folder.name}
+                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                  (thư mục)
+                </span>
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                Xóa lúc {formatDate(folder.deleted_at)}
+              </span>
+              <span className="flex shrink-0 items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => runFolderRestore(folder.id)}
+                >
+                  <RotateCcw aria-hidden="true" />
+                  Khôi phục
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => runFolderPurge(folder.id, folder.name)}
+                >
+                  <Trash2 aria-hidden="true" />
+                  Xóa vĩnh viễn
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {items.length === 0 && folderItems.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border py-16 text-center">
           <p className="font-medium">Thùng rác trống</p>
           <p className="mt-1 text-sm text-muted-foreground">

@@ -41,8 +41,7 @@ describe("canDeduplicate", () => {
 describe("buildReusedResourceRow", () => {
   const row = buildReusedResourceRow({
     ownerId: "user-2",
-    workspaceId: "ws-1",
-    lessonId: "les-1",
+    folderId: null,
     title: "Bài giảng",
     resourceType: "pdf",
     originalFilename: "bai-giang.pdf",

@@ -53,7 +53,7 @@ async function loadOwnedResource(
   const { data } = await supabase
     .from("resources")
     .select(
-      "id, owner_id, type, title, description, lifecycle_state, provider, storage_key, updated_at, deleted_at, workspace_id, lesson_id, lessons!inner(collection_id)",
+      "id, owner_id, type, title, description, lifecycle_state, provider, storage_key, updated_at, deleted_at, folder_id",
     )
     .eq("id", resourceId)
     .maybeSingle();
@@ -62,26 +62,9 @@ async function loadOwnedResource(
   return data;
 }
 
-function revalidateResourcePaths(resource: {
-  workspace_id: string | null;
-  lesson_id: string | null;
-  lessons: unknown;
-  id: string;
-}) {
-  const lessons = resource.lessons as
-    | { collection_id?: string | null }[]
-    | { collection_id?: string | null }
-    | null;
-  const collectionId = Array.isArray(lessons)
-    ? lessons[0]?.collection_id
-    : lessons?.collection_id;
-
-  if (!resource.workspace_id || !resource.lesson_id || !collectionId) {
-    return;
-  }
-  const base = `/kho/${resource.workspace_id}/${collectionId}/${resource.lesson_id}`;
-  revalidatePath(base);
-  revalidatePath(`${base}/${resource.id}`);
+function revalidateResourcePaths(resource: { id: string }) {
+  revalidatePath("/kho");
+  revalidatePath(`/tai-lieu/${resource.id}`);
 }
 
 async function sumUserUsage(
@@ -95,6 +78,38 @@ async function sumUserUsage(
 
   const rows = Array.isArray(data) ? data : [];
   return rows.reduce((sum, row) => sum + (row.size_bytes ?? 0), 0);
+}
+
+export async function getUserQuotaUsage(): Promise<{
+  usedBytes: number;
+  quotaBytes: number;
+  usedLabel: string;
+  quotaLabel: string;
+  percent: number;
+} | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const usedBytes = await sumUserUsage(supabase, user.id);
+  const percent = Math.min(100, Math.round((usedBytes / MAX_USER_QUOTA_BYTES) * 100));
+
+  return {
+    usedBytes,
+    quotaBytes: MAX_USER_QUOTA_BYTES,
+    usedLabel: formatBytes(usedBytes),
+    quotaLabel: MAX_USER_QUOTA_LABEL,
+    percent,
+  };
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function makeStorageKey(userId: string, resourceId: string, fileName: string) {
@@ -134,8 +149,7 @@ async function completeWithReusedObject(
   supabase: SupabaseClient,
   input: {
     ownerId: string;
-    workspaceId: string;
-    lessonId: string;
+    folderId: string | null;
     resourceId?: string;
     title: string;
     resourceType: string;
@@ -231,8 +245,7 @@ export async function createUploadSessionAction(
     if (source) {
       const result = await completeWithReusedObject(supabase, {
         ownerId: userId,
-        workspaceId: resource.workspace_id ?? "",
-        lessonId: resource.lesson_id ?? "",
+        folderId: resource.folder_id ?? null,
         resourceId: resource.id,
         title: resource.title,
         resourceType: resource.type,
@@ -307,25 +320,17 @@ async function startUploadSession(
   return { uploadUrl, key };
 }
 
-const QUICK_COLLECTION_NAME = "Chung";
-const QUICK_LESSON_NAME = "Tài liệu chung";
-
 export async function quickUploadSessionAction(
   formData: FormData,
 ): Promise<
   UploadSessionResult & {
     resourceId?: string;
-    collectionId?: string;
-    lessonId?: string;
+    folderId?: string | null;
   }
 > {
-  const workspaceId = String(formData.get("workspaceId") ?? "");
-  const inputCollectionId = String(formData.get("collectionId") ?? "");
-  const inputLessonId = String(formData.get("lessonId") ?? "");
+  const inputFolderId = String(formData.get("folderId") ?? "") || null;
   const fileName = String(formData.get("fileName") ?? "");
   const sizeBytes = Number(formData.get("sizeBytes") ?? NaN);
-
-  if (!workspaceId) return { error: "Thiếu workspace." };
 
   const resourceType = resourceTypeFromFileName(fileName);
   if (!resourceType || resourceType === "url") {
@@ -339,41 +344,18 @@ export async function quickUploadSessionAction(
   const userId = await requireUser(supabase);
   if (!userId) return { error: "Chưa đăng nhập." };
 
-  // Xác định bài học đích — thả file ở cấp cao hơn sẽ tự dùng/tạo thư mục mặc định.
-  let targetCollectionId: string;
-  let targetLessonId: string;
+  const rlQuick = checkRateLimit(`upload:${userId}`, 40, 60 * 60 * 1000);
+  if (!rlQuick.ok) return { error: "Bạn đang tải lên quá nhanh. Vui lòng thử lại sau." };
 
-  if (inputLessonId && inputCollectionId) {
-    const { data: lesson } = await supabase
-      .from("lessons")
-      .select("id, collection_id, collections!inner(workspace_id)")
-      .eq("id", inputLessonId)
-      .eq("collections.workspace_id", workspaceId)
-      .maybeSingle();
-    if (!lesson) return { error: "Bài học không thuộc workspace này." };
-    targetCollectionId = lesson.collection_id;
-    targetLessonId = inputLessonId;
-  } else if (inputCollectionId) {
-    const { data: collection } = await supabase
-      .from("collections")
+  if (inputFolderId) {
+    const { data: folder } = await supabase
+      .from("folders")
       .select("id")
-      .eq("id", inputCollectionId)
-      .eq("workspace_id", workspaceId)
+      .eq("id", inputFolderId)
+      .eq("owner_id", userId)
+      .is("deleted_at", null)
       .maybeSingle();
-    if (!collection) return { error: "Bộ sưu tập không thuộc workspace này." };
-    targetCollectionId = inputCollectionId;
-
-    const lesson = await findOrCreateDefaultLesson(supabase, inputCollectionId);
-    if (typeof lesson !== "string") return lesson;
-    targetLessonId = lesson;
-  } else {
-    const collection = await findOrCreateDefaultCollection(supabase, workspaceId);
-    if (typeof collection !== "string") return collection;
-    targetCollectionId = collection;
-
-    const lesson = await findOrCreateDefaultLesson(supabase, collection);
-    if (typeof lesson !== "string") return lesson;
-    targetLessonId = lesson;
+    if (!folder) return { error: "Thư mục đích không hợp lệ." };
   }
 
   const sha256Raw = String(formData.get("sha256") ?? "").toLowerCase();
@@ -386,8 +368,7 @@ export async function quickUploadSessionAction(
     if (source) {
       const result = await completeWithReusedObject(supabase, {
         ownerId: userId,
-        workspaceId,
-        lessonId: targetLessonId,
+        folderId: inputFolderId,
         title: titleFromFileName(fileName),
         resourceType,
         originalFilename: fileName.trim(),
@@ -402,8 +383,7 @@ export async function quickUploadSessionAction(
         duplicate: true,
         key: source.storage_key,
         resourceId: result.resourceId,
-        collectionId: targetCollectionId,
-        lessonId: targetLessonId,
+        folderId: inputFolderId,
       };
     }
   }
@@ -412,8 +392,7 @@ export async function quickUploadSessionAction(
     .from("resources")
     .insert({
       owner_id: userId,
-      workspace_id: workspaceId,
-      lesson_id: targetLessonId,
+      folder_id: inputFolderId,
       title: titleFromFileName(fileName),
       description: null,
       type: resourceType,
@@ -442,79 +421,8 @@ export async function quickUploadSessionAction(
   return {
     ...session,
     resourceId: resourceRow.id,
-    collectionId: targetCollectionId,
-    lessonId: targetLessonId,
+    folderId: inputFolderId,
   };
-}
-
-async function findOrCreateDefaultCollection(
-  supabase: SupabaseClient,
-  workspaceId: string,
-): Promise<string | { error: string }> {
-  const { data: existing } = await supabase
-    .from("collections")
-    .select("id")
-    .eq("workspace_id", workspaceId)
-    .eq("name", QUICK_COLLECTION_NAME)
-    .limit(1)
-    .maybeSingle();
-  if (existing) return existing.id;
-
-  const { data: maxRow } = await supabase
-    .from("collections")
-    .select("position")
-    .eq("workspace_id", workspaceId)
-    .order("position", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const { data: created, error } = await supabase
-    .from("collections")
-    .insert({
-      workspace_id: workspaceId,
-      name: QUICK_COLLECTION_NAME,
-      description: "",
-      position: (maxRow?.position ?? -1) + 1,
-    })
-    .select("id")
-    .single();
-  if (error) return { error: error.message };
-  return created.id;
-}
-
-async function findOrCreateDefaultLesson(
-  supabase: SupabaseClient,
-  collectionId: string,
-): Promise<string | { error: string }> {
-  const { data: existing } = await supabase
-    .from("lessons")
-    .select("id")
-    .eq("collection_id", collectionId)
-    .eq("name", QUICK_LESSON_NAME)
-    .limit(1)
-    .maybeSingle();
-  if (existing) return existing.id;
-
-  const { data: maxRow } = await supabase
-    .from("lessons")
-    .select("position")
-    .eq("collection_id", collectionId)
-    .order("position", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const { data: created, error } = await supabase
-    .from("lessons")
-    .insert({
-      collection_id: collectionId,
-      name: QUICK_LESSON_NAME,
-      description: "",
-      position: (maxRow?.position ?? -1) + 1,
-    })
-    .select("id")
-    .single();
-  if (error) return { error: error.message };
-  return created.id;
 }
 
 async function createYoutubeUploadSession({

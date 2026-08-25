@@ -6,5 +6,6 @@ export default async function WorkspaceRedirectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/kho?w=${encodeURIComponent(id)}`);
+  // Phase 37: workspace cũ trở thành thư mục gốc (UUID được bảo toàn).
+  redirect(`/kho?f=${encodeURIComponent(id)}`);
 }

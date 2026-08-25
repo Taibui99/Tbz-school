@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mẫu thử — Tbz cloud kiểu Google Drive</title>
+<style>
+  :root{
+    --bg:#0b0b12; --panel:rgba(255,255,255,.04); --panel-strong:rgba(255,255,255,.08);
+    --border:rgba(255,255,255,.09); --text:#eceaf4; --muted:#9b97ad;
+    --accent:#7c6cff; --accent2:#38d3ff; --danger:#ff6b7a;
+    --grad:linear-gradient(90deg,#7c6cff,#38d3ff);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  input{font:inherit}
+
+  /* ===== topbar ===== */
+  .topbar{display:flex;align-items:center;gap:14px;padding:10px 18px;border-bottom:1px solid var(--border);background:rgba(11,11,18,.8);backdrop-filter:blur(10px);z-index:30}
+  .logo{font-weight:700;font-size:17px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+  .search{flex:1;max-width:520px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:99px;padding:7px 14px;color:var(--muted)}
+  .search input{flex:1;background:none;border:none;outline:none;color:var(--text)}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;margin-left:auto}
+
+  /* ===== layout ===== */
+  .shell{flex:1;display:flex;min-height:0}
+  .sidebar{width:264px;border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:4px;overflow-y:auto;flex-shrink:0}
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;padding:14px 22px 22px;overflow:hidden}
+
+  .btn-new{display:flex;align-items:center;gap:9px;background:var(--panel-strong);border:1px solid var(--border);border-radius:14px;padding:11px 15px;font-weight:600;font-size:14px;box-shadow:0 6px 20px rgba(124,108,255,.14);transition:.15s}
+  .btn-new:hover{background:rgba(124,108,255,.18);border-color:rgba(124,108,255,.45)}
+  .btn-upload{display:inline-flex;align-items:center;gap:8px;background:var(--grad);color:#fff;font-weight:600;font-size:13.5px;padding:9px 16px;border-radius:11px;box-shadow:0 4px 16px rgba(56,211,255,.25)}
+  .btn-ghost{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);padding:9px 14px;border-radius:11px;font-size:13.5px;color:var(--text)}
+  .btn-ghost:hover{background:var(--panel-strong)}
+
+  /* tree */
+  .tree-item{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:9px;font-size:13.5px;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap;overflow:hidden}
+  .tree-item:hover{background:var(--panel)}
+  .tree-item.active{background:rgba(124,108,255,.16);color:var(--text);font-weight:600}
+  .tree-item.drop-hover{outline:2px dashed var(--accent);background:rgba(124,108,255,.12)}
+  .chev{transition:transform .15s;width:14px;flex-shrink:0;opacity:.7}
+  .chev.open{transform:rotate(90deg)}
+  .tree-kids{margin-left:15px;border-left:1px solid var(--border);padding-left:6px}
+
+  /* address bar + toolbar */
+  .crumbs{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:14px;color:var(--muted);min-height:36px}
+  .crumbs b{color:var(--text)}
+  .crumb-link{color:var(--muted);padding:4px 7px;border-radius:7px}
+  .crumb-link:hover{background:var(--panel);color:var(--text)}
+  .toolbar{display:flex;align-items:center;gap:10px;margin:12px 0 18px}
+  .toolbar .spacer{flex:1}
+  .hint{font-size:12px;color:var(--muted)}
+
+  /* grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:12px;overflow-y:auto;padding-bottom:30px;align-content:start;flex:1}
+  .card{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 14px 13px;cursor:pointer;transition:.13s;user-select:none}
+  .card:hover{background:var(--panel-strong);transform:translateY(-2px)}
+  .card.selected{border-color:var(--accent);background:rgba(124,108,255,.12)}
+  .card.drop-hover{outline:2px dashed var(--accent2);background:rgba(56,211,255,.08)}
+  .card .name{font-size:13.5px;font-weight:500;margin-top:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .meta{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .card .icon-lg{width:42px;height:42px}
+  .kebab{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:8px;display:none;align-items:center;justify-content:center;color:var(--muted)}
+  .card:hover .kebab{display:flex}
+  .kebab:hover{background:var(--panel-strong);color:var(--text)}
+
+  /* empty state */
+  .empty{text-align:center;color:var(--muted);padding:70px 20px;grid-column:1/-1}
+  .empty h3{color:var(--text);margin-bottom:8px;font-weight:600}
+
+  /* context menu */
+  .ctx{position:fixed;z-index:100;min-width:190px;background:#17161f;border:1px solid var(--border);border-radius:13px;padding:6px;box-shadow:0 18px 44px rgba(0,0,0,.55);display:none}
+  .ctx button{display:flex;align-items:center;gap:10px;width:100%;padding:8.5px 11px;border-radius:8px;font-size:13.5px;text-align:left}
+  .ctx button:hover{background:var(--panel-strong)}
+  .ctx .danger{color:var(--danger)}
+  .ctx hr{border:none;border-top:1px solid var(--border);margin:5px 4px}
+
+  /* rename input */
+  .rename-input{width:100%;background:#141320;border:1px solid var(--accent);border-radius:7px;padding:4px 7px;color:var(--text);outline:none;font-size:inherit}
+
+  /* toast */
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1d1b2a;border:1px solid var(--border);border-radius:12px;padding:11px 20px;font-size:13.5px;box-shadow:0 12px 34px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.25s;z-index:200}
+  #toast.show{opacity:1}
+
+  /* ============ VIEW 2 : chi tiết tài liệu ============ */
+  #viewDetail{display:none;flex:1;flex-direction:column;min-height:0}
+  #viewExplorer{flex:1;display:flex;min-height:0}
+  body.detail #viewExplorer{display:none}
+  body.detail #viewDetail{display:flex}
+
+  .detail-bar{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--border)}
+  .icon-btn{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);border:1px solid transparent}
+  .icon-btn:hover{background:var(--panel);color:var(--text)}
+  .icon-btn.on{color:var(--accent);border-color:rgba(124,108,255,.4);background:rgba(124,108,255,.12)}
+  .detail-crumbs{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .detail-body{flex:1;display:flex;min-height:0;padding:18px 22px;gap:18px}
+  .viewer-col{flex:1;display:flex;flex-direction:column;min-width:0;gap:14px}
+  .viewer{flex:1;background:#12111b;border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .viewer-head{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--muted)}
+  .pdf-page{flex:1;margin:26px auto;max-width:640px;width:86%;background:#f4f2ec;color:#222;border-radius:4px;padding:46px 52px;font-family:Georgia,serif;line-height:1.75;overflow:auto;font-size:14px}
+  .pdf-page h1{font-size:21px;margin-bottom:14px;color:#111}
+  .drawer{width:340px;flex-shrink:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow-y:auto;transition:margin-right .22s ease, opacity .22s;}
+  .drawer.hidden-drawer{margin-right:-360px;opacity:0;pointer-events:none}
+  .drawer-inner{padding:18px}
+  .sec-title{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:20px 0 9px}
+  .sec-title:first-child{margin-top:0}
+  .chip{display:inline-flex;align-items:center;gap:5px;background:var(--panel-strong);border:1px solid var(--border);border-radius:99px;padding:4px 11px;font-size:12px;color:var(--muted);margin:0 6px 6px 0}
+  .kv{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:5.5px 0}
+  .kv dt{color:var(--muted)} .kv dd{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+  details.tech{border:1px solid var(--border);border-radius:12px;margin-top:10px;background:rgba(255,255,255,.02)}
+  details.tech summary{padding:11px 13px;font-size:12.5px;color:var(--muted);cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}
+  details.tech summary::-webkit-details-marker{display:none}
+  details.tech[open] summary{border-bottom:1px solid var(--border)}
+  details.tech .body{padding:8px 13px 13px}
+  .mono{font-family:Consolas,monospace;font-size:11px}
+  .share-row{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:13px}
+  .mini-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#ff9a62,#ff6b9d);font-size:10.5px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:9px 0}
+  .switch{width:36px;height:20px;border-radius:99px;background:var(--panel-strong);border:1px solid var(--border);position:relative;transition:.18s}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--muted);transition:.18s}
+  .switch.on{background:rgba(124,108,255,.5);border-color:var(--accent)}
+  .switch.on::after{left:18px;background:#fff}
+  .ver-row{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:6px 0;color:var(--muted)}
+  .tag-now{background:rgba(56,211,255,.14);color:var(--accent2);border-radius:6px;padding:2px 7px;font-size:10.5px;font-weight:700}
+
+  @media(max-width:900px){.sidebar{display:none}.drawer{position:fixed;right:10px;top:64px;bottom:10px;z-index:50;box-shadow:0 20px 60px rgba(0,0,0,.6)}}
+</style>
+</head>
+<body>
+
+<!-- ================= TOPBAR ================= -->
+<div class="topbar">
+  <span class="logo">Tbz Cloud</span>
+  <div class="search">🔍<input id="q" placeholder="Tìm kiếm trong kho…"></div>
+  <div class="avatar">BT</div>
+</div>
+
+<!-- ================= VIEW 1: EXPLORER ================= -->
+<div id="viewExplorer" class="shell">
+  <aside class="sidebar">
+    <button class="btn-new" onclick="newFolder()">＋&nbsp; Tạo thư mục</button>
+    <div style="height:8px"></div>
+    <div id="tree"></div>
+    <div style="flex:1"></div>
+    <div class="tree-item" onclick="openTrash()" id="trashItem">🗑️ Thùng rác <span id="trashCount" style="margin-left:auto;font-size:11px"></span></div>
+  </aside>
+
+  <main class="main">
+    <div class="crumbs" id="crumbs"></div>
+    <div class="toolbar">
+      <button class="btn-upload" onclick="fakeUpload()">⬆ Tải tệp lên</button>
+      <button class="btn-ghost" onclick="newFolder()">＋ Mới ▾</button>
+      <span class="spacer"></span>
+      <span class="hint">💡 Kéo thả để di chuyển · nhấp đôi để mở · chuột phải để thao tác</span>
+    </div>
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+
+<!-- ================= VIEW 2: CHI TIẾT TÀI LIỆU ================= -->
+<div id="viewDetail">
+  <div class="detail-bar">
+    <button class="icon-btn" onclick="closeDetail()" title="Quay lại">←</button>
+    <div class="detail-crumbs" id="detailCrumbs"></div>
+    <button class="icon-btn" title="Yêu thích">♡</button>
+    <button class="btn-ghost">🔗 Chia sẻ</button>
+    <button class="btn-upload">⬇ Tải về</button>
+    <button class="icon-btn" title="Thêm">⋯</button>
+    <button class="icon-btn on" id="detailToggle" onclick="toggleDrawer()" title="Chi tiết">ⓘ</button>
+  </div>
+  <div class="detail-body">
+    <div class="viewer-col">
+      <div class="viewer">
+        <div class="viewer-head">
+          📄 <b id="vName" style="color:var(--text)">tài-liệu.pdf</b> · Trang 1/12 · 128%
+          <span style="margin-left:auto">＋ − &nbsp;⛶</span>
+        </div>
+        <div class="pdf-page">
+          <h1>Chương 3: Hệ thống âm vị tiếng Anh</h1>
+          <p><i>Nội dung tài liệu hiển thị tại đây — trình xem chiếm toàn bộ không gian chính, không bị chen ngang.</i></p>
+          <p style="margin-top:14px">Âm vị học nghiên cứu các đơn vị âm thanh có chức năng phân biệt nghĩa… Trong tiếng Anh, hệ thống gồm 44 âm vị, chia thành nguyên âm và phụ âm…</p>
+          <p style="margin-top:14px">(Trang mô phỏng — trong web thật sẽ là PDF nhúng / trình phát video / xem ảnh.)</p>
+        </div>
+      </div>
+      <!-- chỉ xuất hiện với video -->
+      <div id="ytPanel" class="glass" style="display:none;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:14px 16px;font-size:13.5px;color:var(--muted)">
+        ▶️ <b style="color:var(--text)">Đăng lên YouTube</b> — kết nối tài khoản để đăng bài giảng này (chỉ hiện với loại video).
+      </div>
+    </div>
+
+    <aside class="drawer" id="drawer">
+      <div class="drawer-inner">
+        <div class="sec-title">Tổng quan</div>
+        <div style="font-weight:600;font-size:15px">Đề cương Ngữ âm.pdf</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">PDF · Riêng tư</div>
+        <p style="font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.6">Tài liệu ôn tập chương 3 cho lớp NA-2025.</p>
+        <div style="margin-top:12px">
+          <span class="chip">#ngữ-âm</span><span class="chip">#ôn-tập</span>
+          <span class="chip" style="border-style:dashed;cursor:pointer">＋ thẻ</span>
+        </div>
+
+        <div class="sec-title">Thông tin</div>
+        <dl>
+          <div class="kv"><dt>Kích thước</dt><dd>2,4 MB</dd></div>
+          <div class="kv"><dt>Tên gốc</dt><dd>de-cuong-ngu-am.pdf</dd></div>
+          <div class="kv"><dt>Tạo lúc</dt><dd>20/08/2026 09:12</dd></div>
+          <div class="kv"><dt>Cập nhật</dt><dd>Hôm nay 08:40</dd></div>
+        </dl>
+
+        <details class="tech">
+          <summary>⚙️ Chi tiết kỹ thuật <span style="margin-left:auto">▸</span></summary>
+          <div class="body">
+            <div class="kv"><dt>Kiểu MIME</dt><dd>application/pdf</dd></div>
+            <div class="kv"><dt>Nhà cung cấp</dt><dd>supabase-storage</dd></div>
+            <div class="kv"><dt>Khóa lưu trữ</dt><dd class="mono">usr/27ea…/de-cuong.pdf</dd></div>
+            <div class="kv"><dt>SHA-256</dt><dd class="mono">9f2c…a41b</dd></div>
+          </div>
+        </details>
+
+        <div class="sec-title">Chia sẻ</div>
+        <div class="toggle-row"><span>🔗 anyone-with-link</span><div class="switch" onclick="this.classList.toggle('on')"></div></div>
+        <div class="share-row"><div class="mini-avatar">MH</div> Minh Hoàng · Xem</div>
+        <div class="share-row"><div class="mini-avatar" style="background:linear-gradient(135deg,#62d9ff,#7c6cff)">LA</div> Lan Anh · Sửa</div>
+
+        <div class="sec-title">Phiên bản tệp</div>
+        <div class="ver-row"><span class="tag-now">v2</span> Hôm nay 08:40 · 2,4 MB <button class="btn-ghost" style="margin-left:auto;padding:4px 9px;font-size:11.5px">Khôi phục</button></div>
+        <div class="ver-row"><span class="tag-now" style="background:var(--panel-strong);color:var(--muted)">v1</span> 12/08/2026 · 2,1 MB</div>
+
+        <div class="sec-title">Hành động</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button class="btn-ghost">✏️ Đổi tên</button>
+          <button class="btn-ghost">📁 Di chuyển</button>
+          <button class="btn-ghost" style="color:var(--danger)">🗑️ Xóa</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="ctx" id="ctxMenu"></div>
+<div id="toast"></div>
+
+<script>
+/* ================= dữ liệu giả ================= */
+let uid = 0;
+const nid = () => "n" + (++uid);
+function N(name, kind, kids, meta){ return {id:nid(), name, kind, parent:null, children:kids||[], ...meta}; }
+function link(nodes,parent){ nodes.forEach(n=>{n.parent=parent; link(n.children,n);}); return nodes; }
+
+const root = N("Kho của tôi","root",[
+  N("Khoa Ngôn ngữ Anh","folder",[
+    N("Học kỳ 1","folder",[
+      N("Ngữ âm","folder",[
+        N("Đề cương Ngữ âm","file",{mime:"application/pdf",size:"2,4 MB",date:"20/08",openable:true}),
+        N("Bài giảng phát âm","file",{kind2:"video",size:"184 MB",date:"19/08"}),
+        N("Sơ đồ âm vị","file",{kind2:"image",size:"310 KB",date:"18/08"})
+      ]),
+      N("Ngữ pháp","folder",[
+        N("Bài tập thì quá khứ","file",{mime:"application/msword",size:"88 KB",date:"15/08"})
+      ])
+    ]),
+    N("Học kỳ 2","folder",[])
+  ]),
+  N("Luận văn tốt nghiệp","folder",[
+    N("Bản thảo chương 1","file",{mime:"application/pdf",size:"1,1 MB",date:"10/08"})
+  ]),
+  N("Ảnh lớp học","file",{kind2:"image",size:"1,9 MB",date:"05/08"})
+]);
+
+link([root], null);
+let current = root, selected = null, trash = [];
+let expanded = new Set([root.children[0].id, root.children[0].children[0].id]);
+let renamingNode = null, dragging = null, inTrash = false;
+
+const $ = s => document.querySelector(s);
+const iconFor = n => n.kind==="folder"
+  ? `<svg class="icon-lg" viewBox="0 0 24 24" fill="#f8c94b"><path d="M3 5h6l2 2h10v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z"/></svg>`
+  : `<svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="${n.kind2==="video"?"#ff6b9d":n.kind2==="image"?"#38d3ff":"#9b97ad"}" stroke-width="1.5">${n.kind2==="video"?'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9l5 3-5 3V9z"/>':n.kind2==="image"?'<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M3 17l5-4 4 3 4-4 5 5"/>':'<path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M14 2v6h6"/>'}</svg>`;
+const pathOf = n => { const p=[]; let x=n; while(x){ p.unshift(x); x=x.parent; } return p; };
+
+/* ================= sidebar tree ================= */
+function renderTree(){
+  const el=$("#tree"); el.innerHTML="";
+  function walk(node, container, depth){
+    node.children.filter(c=>c.kind==="folder").forEach(k=>{
+      const isOpen=expanded.has(k.id);
+      const row=document.createElement("div");
+      row.dataset.id=k.id;
+      row.className="tree-item"+(current===k&&!inTrash?" active":"");
+      row.draggable=!inTrash;
+      row.style.maxWidth="100%";
+      row.innerHTML=(depth>0?"":`<svg class="chev ${isOpen?"open":""}" viewBox="0 0 24 24" fill="currentColor"><path d="M9 6l6 6-6 6"/></svg>`)+`📁 <span class="name">${k.name}</span>`;
+      row.title=k.name;
+      row.onclick=e=>{ if(e.target.closest(".chev")){expanded.has(k.id)?expanded.delete(k.id):expanded.add(k.id);render();return;} go(k); };
+      row.oncontextmenu=e=>{ e.preventDefault(); e.stopPropagation(); current!==k&&!inTrash&&expanded.add(k.parent?.id||root.id); selected=k; render(); showCtx(e.clientX,e.clientY,k,row); };
+      attachDrag(row,k);
+      ["dragover","dragleave","drop"].forEach(evt=>{
+        row.addEventListener(evt,e=>{
+          if(!dragging||dragging===k)return;
+          if(evt==="dragover"){e.preventDefault();row.classList.add("drop-hover");}
+          else{row.classList.remove("drop-hover"); if(evt==="drop"){e.preventDefault();e.stopPropagation();moveTo(dragging,k);}}
+        });
+      });
+      container.appendChild(row);
+      if(isOpen){ const kid=document.createElement("div"); kid.className="tree-kids"; container.appendChild(kid); walk(k,kid,depth+1); }
+    });
+  }
+  walk(root, el, 0);
+  $("#trashCount").textContent = trash.length?`(${trash.length})`:"";
+}
+
+/* ================= main grid ================= */
+function renderGrid(){
+  const g = $("#grid"); g.innerHTML="";
+  let items = inTrash ? trash : current.children;
+  const q = $("#q").value.trim().toLowerCase();
+  if(q) items = items.filter(n=>n.name.toLowerCase().includes(q));
+  if(!items.length){
+    g.innerHTML = `<div class="empty"><h3>${inTrash?"Thùng rác trống":"Thư mục này đang trống"}</h3>${inTrash?"":"Kéo tệp từ máy vào đây, hoặc bấm “Tải tệp lên” / “Tạo thư mục”."}</div>`;
+    return;
+  }
+  items.forEach(n=>{
+    const card=document.createElement("div");
+    card.dataset.id=n.id;
+    card.className="card"+(selected===n?" selected":"");
+    card.draggable=!inTrash;
+    card.innerHTML = `${iconFor(n)}
+      <div class="name">${n.name}</div>
+      <div class="meta">${n.kind==="folder"? n.children.length+" mục" : n.size+" · "+n.date}</div>
+      <button class="kebab" title="Tuỳ chọn">⋮</button>`;
+    card.onclick = e => { if(e.target.closest(".kebab"))return; select(n); };
+    card.ondblclick = e => { if(e.target.closest(".kebab"))return; openItem(n); };
+    card.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); selected=n; renderGrid(); showCtx(e.clientX,e.clientY,n,card); };
+    $(".kebab",card)?.addEventListener("click",e=>{e.stopPropagation();selected=n;renderGrid();const r=e.target.getBoundingClientRect();showCtx(r.left,r.bottom+4,n,card);});
+    if(n.kind==="folder"){ attachDrag(card,n); card.addEventListener("dragover",e=>{if(dragging&&dragging!==n){e.preventDefault();card.classList.add("drop-hover");}}); card.addEventListener("dragleave",()=>card.classList.remove("drop-hover")); card.addEventListener("drop",e=>{e.preventDefault();card.classList.remove("drop-hover"); moveTo(dragging,n);}); }
+    g.appendChild(card);
+  });
+}
+function renderCrumbs(){
+  const c=$("#crumbs"); c.innerHTML="";
+  pathOf(current).forEach((n,i,arr)=>{
+    const b=document.createElement(i===arr.length-1?"b":"button");
+    b.className=i===arr.length-1?"":"crumb-link";
+    b.textContent=n.name;
+    if(i<arr.length-1) b.onclick=()=>go(n);
+    c.appendChild(b);
+    if(i<arr.length-1){const s=document.createElement("span");s.textContent="›";s.style.opacity=.5;c.appendChild(s);}
+  });
+  if(inTrash){const s=document.createElement("b");s.style.color="var(--danger)";s.textContent="› Thùng rác";c.appendChild(s);}
+}
+function render(){ renderTree(); renderGrid(); renderCrumbs(); }
+function go(n){ inTrash=false; current=n; selected=null; expanded.add(n.id); render(); }
+function select(n){ selected=n; renderGrid(); }
+function openItem(n){
+  if(inTrash) return toast("Khôi phục tệp trước khi mở.");
+  n.kind==="folder" ? go(n) : openDetail(n);
+}
+
+/* ================= drag & drop ================= */
+function attachDrag(el,node){
+  if(!el||!node) return;
+  el.addEventListener("dragstart",e=>{dragging=node;e.dataTransfer.effectAllowed="move";});
+  el.addEventListener("dragend",()=>{dragging=null;document.querySelectorAll(".drop-hover").forEach(x=>x.classList.remove("drop-hover"));});
+}
+
+/* ================= context menu ================= */
+function showCtx(x,y,node,srcEl){
+  const m=$("#ctxMenu"); m.innerHTML="";
+  const add=(label,fn,danger)=>{const b=document.createElement("button");b.textContent=label;b.className=danger?"danger":"";b.onclick=()=>{hideCtx();fn();};m.appendChild(b);};
+  if(!inTrash){
+    if(node.kind==="folder") add("📂 Mở",()=>go(node));
+    else add("📄 Mở để xem",()=>openDetail(node));
+    add("✏️ Đổi tên (F2)",()=>startRename(node,srcEl));
+    add("📁 Di chuyển tới…",()=>toast("(Demo) Hộp chọn thư mục đích — cây mọi thư mục, loại trừ chính nó."));
+    if(node.kind!=="folder") add("🔗 Chia sẻ",()=>toast("Mở nhanh bảng chia sẻ."));
+    m.appendChild(document.createElement("hr"));
+    add("🗑️ Chuyển vào thùng rác",()=>del(node),true);
+  } else {
+    add("♻️ Khôi phục",()=>restore(node));
+    add("❌ Xóa vĩnh viễn",()=>{trash=trash.filter(t=>t!==node);render();},true);
+  }
+  m.style.display="block";
+  const w=m.offsetWidth,h=m.offsetHeight;
+  m.style.left=Math.min(x,innerWidth-w-8)+"px";
+  m.style.top=Math.min(y,innerHeight-h-8)+"px";
+}
+function hideCtx(){ $("#ctxMenu").style.display="none"; }
+document.addEventListener("click",hideCtx);
+document.addEventListener("contextmenu",e=>{ if(!e.target.closest(".card")&&!e.target.closest(".tree-item")){e.preventDefault();showCtx(e.clientX,e.clientY,current);} });
+
+/* ================= hành động ================= */
+function startRename(node, srcEl){
+  const host = (srcEl && srcEl.dataset && srcEl.dataset.id===node.id ? srcEl : null)
+    || document.querySelector(`[data-id="${node.id}"]`);
+  if(!host) return;
+  const label = host.querySelector(".name") || host.querySelector("span");
+  if(!label) return;
+  const inp=document.createElement("input");
+  inp.className="rename-input"; inp.value=node.name;
+  label.replaceWith(inp); inp.focus(); inp.select();
+  let doneFlag=false;
+  const done=ok=>{
+    if(doneFlag)return; doneFlag=true;
+    if(ok&&inp.value.trim()&&inp.value.trim()!==node.name){ node.name=inp.value.trim(); toast("Đã đổi tên."); }
+    render();
+  };
+  inp.onkeydown=e=>{ e.stopPropagation(); if(e.key==="Enter")done(true); if(e.key==="Escape")done(false); };
+  inp.onclick=e=>e.stopPropagation();
+  inp.onblur=()=>done(true);
+}
+function newFolder(){
+  if(inTrash)return toast("Thoát thùng rác để tạo thư mục.");
+  const f=N("Thư mục mới","folder",[]);
+  f.parent=current; current.children.push(f);
+  expanded.add(current.id); selected=f; render();
+  startRename(f, document.querySelector(`[data-id="${f.id}"]`));
+}
+function del(node){
+  const arr=inTrash?trash:current.children;
+  arr.splice(arr.indexOf(node),1); trash.push(node);
+  selected=null; render(); toast(`“${node.name}” đã chuyển vào thùng rác.`);
+}
+function moveTo(node, targetFolder){
+  if(!node||!targetFolder||node===targetFolder) return;
+  if(targetFolder.kind!=="folder") return;
+  // chặn kéo cha vào con
+  let x=targetFolder; while(x){ if(x===node) return toast("Không thể di chuyển thư mục vào chính nó."); x=x.parent; }
+  const src=node.parent?.children; if(!src) return;
+  if(node.parent===targetFolder) return;
+  src.splice(src.indexOf(node),1);
+  targetFolder.children.push(node); node.parent=targetFolder;
+  expanded.add(targetFolder.id); selected=null; render();
+  toast(`Đã chuyển “${node.name}” vào “${targetFolder.name}”.`);
+}
+document.addEventListener("keydown",e=>{
+  if(document.body.classList.contains("detail")) return;
+  if(e.target.tagName==="INPUT") return;
+  if(e.key==="F2"&&selected&&!inTrash) startRename(selected, document.querySelector(`[data-id="${selected.id}"]`));
+  if(e.key==="Delete"&&selected){ del(selected); }
+  if(e.key==="Enter"&&selected) openItem(selected);
+});
+function restore(node){ trash.splice(trash.indexOf(node),1); node.parent?.children.push(node)||root.children.push(node); render(); toast("Đã khôi phục."); }
+function openTrash(){ inTrash=true; render(); }
+function fakeUpload(){
+  if(inTrash)return toast("Thoát thùng rác để tải tệp.");
+  const f=N("Tài liệu mẫu.pdf","file",{mime:"application/pdf",size:"1,2 MB",date:"hôm nay"});
+  current.children.push(f); render(); toast("Đã tải “Tài liệu mẫu.pdf” lên thư mục này.");
+}
+$("#q").addEventListener("input",renderGrid);
+
+/* ================= view 2 ================= */
+function openDetail(n){
+  document.body.classList.add("detail");
+  $("#detailCrumbs").innerHTML=pathOf(n===undefined?current:n).map(x=>x.name).join("  ›  ")+"  ›  "+n.name;
+  $("#vName").textContent=n.name.toLowerCase().replace(/\s+/g,"-")+".pdf";
+  $("#ytPanel").style.display=n.kind2==="video"?"block":"none";
+}
+function closeDetail(){ document.body.classList.remove("detail"); }
+function toggleDrawer(){
+  $("#drawer").classList.toggle("hidden-drawer");
+  $("#detailToggle").classList.toggle("on");
+}
+
+/* ================= toast ================= */
+let tt;
+function toast(msg){ const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2400); }
+
+render();
+</script>
+</body>
+</html>

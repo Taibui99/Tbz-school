@@ -21,6 +21,13 @@ export async function GET(request: Request) {
   const code = url.searchParams.get("code");
   if (!code) return fail("no-code");
 
+  // Validate OAuth state (CSRF protection)
+  const state = url.searchParams.get("state");
+  const cookieState = request.headers.get("cookie")?.match(/google_oauth_state=([^;]+)/)?.[1];
+  if (!state || !cookieState || state !== cookieState) {
+    return fail("invalid-state");
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -37,9 +44,11 @@ export async function GET(request: Request) {
       tokens.refresh_token,
     );
     if (!result.ok) return fail("store");
-    return NextResponse.redirect(
+    const response = NextResponse.redirect(
       new URL("/ho-so?google=connected", url.origin),
     );
+    response.cookies.delete("google_oauth_state");
+    return response;
   } catch {
     return fail("exchange");
   }

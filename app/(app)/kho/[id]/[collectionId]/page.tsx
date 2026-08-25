@@ -5,8 +5,7 @@ export default async function CollectionRedirectPage({
 }: {
   params: Promise<{ id: string; collectionId: string }>;
 }) {
-  const { id, collectionId } = await params;
-  redirect(
-    `/kho?w=${encodeURIComponent(id)}&c=${encodeURIComponent(collectionId)}`,
-  );
+  const { collectionId } = await params;
+  // Phase 37: collection cũ trở thành thư mục (UUID được bảo toàn khi chuyển đổi).
+  redirect(`/kho?f=${encodeURIComponent(collectionId)}`);
 }

@@ -23,8 +23,7 @@ export type ReusableObject = {
 
 export type ReusedResourceRow = {
   owner_id: string;
-  workspace_id: string;
-  lesson_id: string;
+  folder_id: string | null;
   title: string;
   type: string;
   visibility: "private";
@@ -41,8 +40,7 @@ export type ReusedResourceRow = {
 // không nhân bản bytes, quota vẫn tính theo tham chiếu (xem ADR-025).
 export function buildReusedResourceRow(input: {
   ownerId: string;
-  workspaceId: string;
-  lessonId: string;
+  folderId: string | null;
   title: string;
   resourceType: string;
   originalFilename: string;
@@ -51,8 +49,7 @@ export function buildReusedResourceRow(input: {
 }): ReusedResourceRow {
   return {
     owner_id: input.ownerId,
-    workspace_id: input.workspaceId,
-    lesson_id: input.lessonId,
+    folder_id: input.folderId,
     title: input.title,
     type: input.resourceType,
     visibility: "private",

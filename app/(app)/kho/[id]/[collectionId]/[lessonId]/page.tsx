@@ -5,8 +5,7 @@ export default async function LessonRedirectPage({
 }: {
   params: Promise<{ id: string; collectionId: string; lessonId: string }>;
 }) {
-  const { id, collectionId, lessonId } = await params;
-  redirect(
-    `/kho?w=${encodeURIComponent(id)}&c=${encodeURIComponent(collectionId)}&l=${encodeURIComponent(lessonId)}`,
-  );
+  const { lessonId } = await params;
+  // Phase 37: lesson cũ trở thành thư mục (UUID được bảo toàn khi chuyển đổi).
+  redirect(`/kho?f=${encodeURIComponent(lessonId)}`);
 }

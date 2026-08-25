@@ -261,9 +261,6 @@ export function CreateResourceDialog({
 
 export function EditResourceDialog({
   resource,
-  workspaceId,
-  collectionId,
-  lessonId,
 }: {
   resource: {
     id: string;
@@ -274,9 +271,9 @@ export function EditResourceDialog({
     externalUrl: string | null;
     youtubeId: string | null;
   };
-  workspaceId: string;
-  collectionId: string;
-  lessonId: string;
+  workspaceId?: string;
+  collectionId?: string;
+  lessonId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const pushToast = useToast();
@@ -307,9 +304,6 @@ export function EditResourceDialog({
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={resource.id} />
-          <input type="hidden" name="workspaceId" value={workspaceId} />
-          <input type="hidden" name="collectionId" value={collectionId} />
-          <input type="hidden" name="lessonId" value={lessonId} />
           {state.error && (
             <Alert variant="destructive">
               <AlertTitle>Lỗi</AlertTitle>

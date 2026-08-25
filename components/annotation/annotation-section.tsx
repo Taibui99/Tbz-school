@@ -96,7 +96,7 @@ export function AnnotationSection({
         : "Tài liệu";
 
   return (
-    <section className="mt-6">
+    <section id="annotation-section" className="mt-6">
       <h2 className="mb-2 text-sm font-medium">Ghi chú & đánh dấu</h2>
       <div className="glass-panel rounded-2xl p-4">
         {!adding && (

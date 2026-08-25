@@ -21,26 +21,25 @@ async function requireUser(
   return user?.id ?? null;
 }
 
-async function getLessonContext(
+async function getFolderOwned(
   supabase: SupabaseClient,
-  lessonId: string,
-  workspaceId: string,
-) {
+  userId: string,
+  folderId: string | null,
+): Promise<boolean> {
+  if (!folderId) return true;
   const { data } = await supabase
-    .from("lessons")
-    .select("id, collection_id, collections!inner(workspace_id)")
-    .eq("id", lessonId)
-    .eq("collections.workspace_id", workspaceId)
+    .from("folders")
+    .select("id")
+    .eq("id", folderId)
+    .eq("owner_id", userId)
+    .is("deleted_at", null)
     .maybeSingle();
-  if (!data) return null;
-  return {
-    lessonId: data.id,
-    collectionId: data.collection_id,
-  };
+  return Boolean(data);
 }
 
-function revalidateLesson(workspaceId: string, collectionId: string, lessonId: string) {
-  revalidatePath(`/kho/${workspaceId}/${collectionId}/${lessonId}`);
+function revalidateResource(id?: string | null) {
+  revalidatePath("/kho");
+  if (id) revalidatePath(`/tai-lieu/${id}`);
 }
 
 // ---------- Create ----------
@@ -49,8 +48,7 @@ export async function createResourceAction(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const workspaceId = String(formData.get("workspaceId") ?? "");
-  const lessonId = String(formData.get("lessonId") ?? "");
+  const folderId = String(formData.get("folderId") ?? "") || null;
   const title = String(formData.get("title") ?? "");
   const description = String(formData.get("description") ?? "");
   const type = String(formData.get("type") ?? "");
@@ -71,9 +69,9 @@ export async function createResourceAction(
   const supabase = await createClient();
   const userId = await requireUser(supabase);
   if (!userId) return { error: "Chưa đăng nhập." };
-
-  const lesson = await getLessonContext(supabase, lessonId, workspaceId);
-  if (!lesson) return { error: "Bài học không thuộc workspace." };
+  if (!(await getFolderOwned(supabase, userId, folderId))) {
+    return { error: "Thư mục đích không hợp lệ." };
+  }
 
   const isExternal = type === "url";
   const isYoutubeVideo = type === "video" && youtubeUrl.trim().length > 0;
@@ -81,8 +79,7 @@ export async function createResourceAction(
     .from("resources")
     .insert({
       owner_id: userId,
-      workspace_id: workspaceId,
-      lesson_id: lessonId,
+      folder_id: folderId,
       title: title.trim(),
       description: description.trim() || null,
       type,
@@ -103,10 +100,8 @@ export async function createResourceAction(
     if (externalError) return { error: externalError.message };
   }
 
-  revalidateLesson(workspaceId, lesson.collectionId, lessonId);
-  redirect(
-    `/kho/${workspaceId}/${lesson.collectionId}/${lessonId}/${data.id}`,
-  );
+  revalidatePath("/kho");
+  redirect(`/tai-lieu/${data.id}`);
 }
 
 // ---------- Update ----------
@@ -116,9 +111,6 @@ export async function updateResourceAction(
   formData: FormData,
 ): Promise<ActionResult> {
   const id = String(formData.get("id") ?? "");
-  const workspaceId = String(formData.get("workspaceId") ?? "");
-  const collectionId = String(formData.get("collectionId") ?? "");
-  const lessonId = String(formData.get("lessonId") ?? "");
   const title = String(formData.get("title") ?? "");
   const description = String(formData.get("description") ?? "");
   const type = String(formData.get("type") ?? "");
@@ -135,7 +127,8 @@ export async function updateResourceAction(
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
   const supabase = await createClient();
-  if (!(await requireUser(supabase))) return { error: "Chưa đăng nhập." };
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
 
   const isYoutubeVideo = type === "video" && youtubeUrl.trim().length > 0;
   const { error } = await supabase
@@ -146,10 +139,11 @@ export async function updateResourceAction(
       visibility,
       youtube_id: isYoutubeVideo ? youtubeIdFromUrl(youtubeUrl) : null,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("owner_id", userId);
   if (error) return { error: error.message };
 
-  revalidateLesson(workspaceId, collectionId, lessonId);
+  revalidateResource(id);
   return { success: "Đã lưu tài liệu." };
 }
 
@@ -159,24 +153,18 @@ export async function deleteResourceAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
 
   const supabase = await createClient();
-  if (!(await requireUser(supabase))) return { error: "Chưa đăng nhập." };
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
 
   const { error } = await supabase
     .from("resources")
     .update({ deleted_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("owner_id", userId);
   if (error) return { error: error.message };
 
-  const { data } = await supabase
-    .from("resources")
-    .select("workspace_id, lesson_id, lessons!inner(collection_id)")
-    .eq("id", id)
-    .maybeSingle();
-  if (data) {
-    revalidatePath(
-      `/kho/${data.workspace_id}/${data.lessons ? (Array.isArray(data.lessons) ? data.lessons[0] : data.lessons).collection_id : undefined}/${data.lesson_id}`,
-    );
-  }
+  revalidateResource(id);
+  revalidatePath("/thung-rac");
   return { success: "Đã xóa tài liệu (vào thùng rác)." };
 }
 
@@ -184,24 +172,18 @@ export async function restoreResourceAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
 
   const supabase = await createClient();
-  if (!(await requireUser(supabase))) return { error: "Chưa đăng nhập." };
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
 
   const { error } = await supabase
     .from("resources")
     .update({ deleted_at: null })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("owner_id", userId);
   if (error) return { error: error.message };
 
-  const { data } = await supabase
-    .from("resources")
-    .select("workspace_id, lesson_id, lessons!inner(collection_id)")
-    .eq("id", id)
-    .maybeSingle();
-  if (data) {
-    revalidatePath(
-      `/kho/${data.workspace_id}/${data.lessons ? (Array.isArray(data.lessons) ? data.lessons[0] : data.lessons).collection_id : undefined}/${data.lesson_id}`,
-    );
-  }
+  revalidateResource(id);
+  revalidatePath("/thung-rac");
   return { success: "Đã khôi phục tài liệu." };
 }
 
@@ -248,7 +230,17 @@ export async function setTagsAction(
   if (tagsError) return { error: tagsError };
 
   const supabase = await createClient();
-  if (!(await requireUser(supabase))) return { error: "Chưa đăng nhập." };
+  const userId = await requireUser(supabase);
+  if (!userId) return { error: "Chưa đăng nhập." };
+
+  // Verify user owns the resource
+  const { data: resource } = await supabase
+    .from("resources")
+    .select("id")
+    .eq("id", resourceId)
+    .eq("owner_id", userId)
+    .maybeSingle();
+  if (!resource) return { error: "Không tìm thấy tài liệu hoặc không có quyền." };
 
   const { data: allowedTags } = await supabase.from("tags").select("id");
   const allowedIds = new Set((allowedTags ?? []).map((tag) => tag.id));
@@ -281,7 +273,7 @@ export async function recordOpenAction(resourceId: string) {
 
   const { data: resource } = await supabase
     .from("resources")
-    .select("id, workspace_id, lesson_id, lessons!inner(collection_id)")
+    .select("id, folder_id")
     .eq("id", resourceId)
     .maybeSingle();
   if (!resource) return;
@@ -290,24 +282,8 @@ export async function recordOpenAction(resourceId: string) {
     user_id: userId,
     resource_id: resource.id,
     action: "open",
-    metadata: {
-      workspace_id: resource.workspace_id,
-      collection_id: resource.lessons ? (Array.isArray(resource.lessons) ? resource.lessons[0] : resource.lessons).collection_id : undefined,
-      lesson_id: resource.lesson_id,
-    },
+    metadata: { folder_id: resource.folder_id },
   });
-}
-
-// ---------- Copy / bulk ----------
-
-function lessonContextOf(row: { lessons: unknown }) {
-  const lessons = row.lessons as
-    | { collection_id?: string | null }[]
-    | { collection_id?: string | null }
-    | null;
-  return Array.isArray(lessons)
-    ? lessons[0]?.collection_id
-    : lessons?.collection_id;
 }
 
 export async function copyResourceAction(formData: FormData) {
@@ -320,16 +296,11 @@ export async function copyResourceAction(formData: FormData) {
   const { data: src } = await supabase
     .from("resources")
     .select(
-      "id, title, description, type, visibility, lifecycle_state, provider, external_url, youtube_id, workspace_id, lesson_id, lessons!inner(collection_id)",
+      "id, title, description, type, visibility, lifecycle_state, provider, external_url, youtube_id, folder_id",
     )
     .eq("id", id)
     .maybeSingle();
   if (!src) return { error: "Tài liệu không tồn tại." };
-
-  const collectionId = lessonContextOf(src);
-  if (!src.workspace_id || !src.lesson_id || !collectionId) {
-    return { error: "Thiếu ngữ cảnh tài liệu." };
-  }
 
   const isExternal = src.type === "url" || src.provider === "external";
   const isYoutubeVideo = src.type === "video" && !!src.youtube_id;
@@ -337,8 +308,7 @@ export async function copyResourceAction(formData: FormData) {
     .from("resources")
     .insert({
       owner_id: userId,
-      workspace_id: src.workspace_id,
-      lesson_id: src.lesson_id,
+      folder_id: src.folder_id,
       title: `${src.title} (bản sao)`,
       description: src.description,
       type: src.type,
@@ -358,10 +328,8 @@ export async function copyResourceAction(formData: FormData) {
       .insert({ resource_id: copy.id, url: src.external_url });
   }
 
-  revalidateLesson(src.workspace_id, collectionId, src.lesson_id);
-  redirect(
-    `/kho/${src.workspace_id}/${collectionId}/${src.lesson_id}/${copy.id}`,
-  );
+  revalidatePath("/kho");
+  redirect(`/tai-lieu/${copy.id}`);
 }
 
 export async function bulkDeleteResourceAction(formData: FormData) {
@@ -387,78 +355,40 @@ export async function bulkDeleteResourceAction(formData: FormData) {
     .in("id", ids);
   if (error) return { error: error.message };
 
-  const { data: ctx } = await supabase
-    .from("resources")
-    .select("workspace_id, lesson_id, lessons!inner(collection_id)")
-    .eq("id", ids[0])
-    .maybeSingle();
-  if (ctx) {
-    const collectionId = lessonContextOf(ctx);
-    if (ctx.workspace_id && ctx.lesson_id && collectionId) {
-      revalidatePath(
-        `/kho/${ctx.workspace_id}/${collectionId}/${ctx.lesson_id}`,
-      );
-    }
-  }
-
+  revalidatePath("/kho");
+  revalidatePath("/thung-rac");
   return { success: `Đã xóa ${ids.length} tài liệu (vào thùng rác).` };
 }
 
 export async function bulkMoveResourceAction(formData: FormData) {
   const ids = formData.getAll("id").map((v) => String(v)).filter(Boolean);
-  const targetLessonId = String(formData.get("targetLessonId") ?? "");
+  const targetFolderId = String(formData.get("targetFolderId") ?? "") || null;
   if (ids.length === 0) return { error: "Chưa chọn tài liệu nào." };
 
   const supabase = await createClient();
   const userId = await requireUser(supabase);
   if (!userId) return { error: "Chưa đăng nhập." };
+  if (!(await getFolderOwned(supabase, userId, targetFolderId))) {
+    return { error: "Thư mục đích không hợp lệ." };
+  }
 
   const { data: owned } = await supabase
     .from("resources")
-    .select("id, workspace_id, lesson_id, lessons!inner(collection_id)")
+    .select("id")
     .eq("owner_id", userId)
     .in("id", ids);
-  if (!owned || owned.length === 0) {
-    return { error: "Không có tài liệu nào được chọn." };
-  }
-  if (owned.length !== ids.length) {
+  if (!owned || owned.length !== ids.length) {
     return { error: "Không có quyền di chuyển một số tài liệu." };
-  }
-
-  const workspaceId = owned[0]?.workspace_id;
-  if (!workspaceId) return { error: "Thiếu ngữ cảnh workspace." };
-  const inSameWorkspace = owned.every(
-    (row) => row.workspace_id === workspaceId,
-  );
-  if (!inSameWorkspace) {
-    return { error: "Các tài liệu phải thuộc cùng một workspace." };
-  }
-
-  const target = await getLessonContext(supabase, targetLessonId, workspaceId);
-  if (!target) {
-    return { error: "Bài học đích không thuộc workspace này." };
   }
 
   const { error } = await supabase
     .from("resources")
-    .update({ lesson_id: targetLessonId })
+    .update({ folder_id: targetFolderId })
+    .eq("owner_id", userId)
     .in("id", ids);
   if (error) return { error: error.message };
 
-  const sourceIds = new Set(owned.map((row) => row.lesson_id));
-  for (const sourceLessonId of sourceIds) {
-    if (sourceLessonId === targetLessonId) continue;
-    const source = owned.find((row) => row.lesson_id === sourceLessonId);
-    if (!source) continue;
-    const collectionId = lessonContextOf(source);
-    if (collectionId) {
-      revalidatePath(
-        `/kho/${workspaceId}/${collectionId}/${sourceLessonId}`,
-      );
-    }
-  }
-  revalidatePath(`/kho/${workspaceId}/${target.collectionId}/${targetLessonId}`);
-
+  revalidatePath("/kho");
   return { success: `Đã di chuyển ${ids.length} tài liệu.` };
 }
 

@@ -35,5 +35,13 @@ export async function GET(request: Request) {
 
   const redirectUri = `${url.origin}/api/auth/google/callback`;
   const state = createOAuthState();
-  return NextResponse.redirect(buildConsentUrl(redirectUri, state));
+  const response = NextResponse.redirect(buildConsentUrl(redirectUri, state));
+  response.cookies.set("google_oauth_state", state, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 600, // 10 phút
+  });
+  return response;
 }

@@ -4,6 +4,8 @@ import { NAV_LINKS } from "@/types";
 import { signOutAction } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { QuotaBar } from "@/components/quota/quota-bar";
+import { MobileNav } from "@/components/mobile-nav";
 
 const navLinkClass =
   "rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-all hover:bg-accent hover:text-foreground";
@@ -31,7 +33,7 @@ export async function SiteHeader() {
         </Link>
         <nav
           aria-label="Điều hướng chính"
-          className="flex flex-wrap items-center justify-end gap-0.5"
+          className="hidden items-center justify-end gap-0.5 lg:flex"
         >
           {user ? (
             <>
@@ -72,6 +74,12 @@ export async function SiteHeader() {
             </>
           )}
         </nav>
+        {user && (
+          <div className="flex items-center gap-1.5">
+            <QuotaBar />
+            <MobileNav />
+          </div>
+        )}
       </div>
     </header>
   );

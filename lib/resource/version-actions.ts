@@ -11,6 +11,7 @@ import {
 } from "@/lib/upload/validate";
 import { getActiveStorageProvider, isSupportedProvider } from "@/lib/storage";
 import { StorageError } from "@/lib/storage/types";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -99,6 +100,9 @@ export async function createVersionUploadSessionAction(
   const supabase = await createClient();
   const userId = await requireUser(supabase);
   if (!userId) return { error: "Chưa đăng nhập." };
+
+  const rlVersion = checkRateLimit(`upload:${userId}`, 40, 60 * 60 * 1000);
+  if (!rlVersion.ok) return { error: "Bạn đang tải lên quá nhanh. Vui lòng thử lại sau." };
 
   const resource = await loadOwnedResource(supabase, userId, resourceId);
   if (!resource) return { error: "Tài liệu không tồn tại." };
