@@ -687,8 +687,7 @@ export function DriveExplorer({
             ? "border-primary/60 bg-primary/10"
             : "border-border/70 hover:border-primary/40"
         } ${isDropping ? "ring-2 ring-primary" : ""}`}
-        onClick={() => setSelectedId(id)}
-        onDoubleClick={() => {
+        onClick={() => {
           if (kind === "folder") navigate(id);
           else router.push(`/tai-lieu/${id}`);
         }}
