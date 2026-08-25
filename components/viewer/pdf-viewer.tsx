@@ -21,14 +21,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).href;
-pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-
 const STORAGE_PREFIX = "tbz:pdf";
 const OVERSCAN = 1;
+
+function ensureWorkerConfigured() {
+  if (
+    typeof window === "undefined" ||
+    pdfjs.GlobalWorkerOptions.workerSrc
+  ) {
+    return;
+  }
+  try {
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url,
+    ).href;
+  } catch {
+    // pdf.js will fall back to main thread (slower but functional)
+  }
+}
 
 type CanvasCacheEntry =
   | { canvas: HTMLCanvasElement; scale: number; pending?: RenderTask }
@@ -69,6 +80,7 @@ export function PdfViewer({
   // Load document
   useEffect(() => {
     let cancelled = false;
+    ensureWorkerConfigured();
     const task = pdfjs.getDocument({ url: src });
     task.promise
       .then((loaded) => {
@@ -294,6 +306,18 @@ export function PdfViewer({
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card py-12 text-center">
         <p className="text-sm text-destructive">{error}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setError(null);
+            setDoc(null);
+            // Force remount by updating key
+            window.location.reload();
+          }}
+        >
+          Thử lại
+        </Button>
       </div>
     );
   }

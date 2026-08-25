@@ -8,7 +8,7 @@ const CSP = [
   "media-src 'self' blob: https://*.supabase.co",
   "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
   "worker-src 'self' blob:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.googleapis.com https://oauth2.googleapis.com",
+  "connect-src 'self' blob: https://*.supabase.co wss://*.supabase.co https://www.googleapis.com https://oauth2.googleapis.com",
   "font-src 'self' data:",
   "object-src 'none'",
   "base-uri 'self'",
