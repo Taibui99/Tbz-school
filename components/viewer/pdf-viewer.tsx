@@ -5,7 +5,6 @@ import {
   FileText,
   Maximize,
   Minimize,
-  RefreshCw,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,9 +20,11 @@ export function PdfViewer({
   onPageChange?: (page: number) => void;
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const toggleFullscreen = useCallback(async () => {
     const el = containerRef.current;
@@ -41,11 +42,33 @@ export function PdfViewer({
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
+  useEffect(() => {
+    timerRef.current = setTimeout(() => {
+      setLoadFailed(true);
+    }, 15000);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [src]);
+
+  const handleLoad = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setLoading(false);
+    try {
+      const iframe = iframeRef.current;
+      if (!iframe?.contentDocument?.body?.children.length) {
+        setLoadFailed(true);
+      }
+    } catch {
+      // Cross-origin — assume viewable (browser rendered it)
+    }
+  }, []);
+
   const fallback = (
     <div className="flex flex-col items-center gap-3 py-12 text-center">
       <FileText aria-hidden="true" className="size-8 text-muted-foreground" />
       <div>
-        <p className="font-medium">Tệp này có thể không xem trước được</p>
+        <p className="font-medium">Tệp này không xem trước được</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Vui lòng tải về máy để mở bằng trình đọc PDF.
         </p>
@@ -93,41 +116,17 @@ export function PdfViewer({
           </Button>
         </div>
       </div>
-      {showFallback ? (
+      {loadFailed ? (
         fallback
       ) : (
-        <>
-          <iframe
-            ref={iframeRef}
-            src={src}
-            title="PDF Viewer"
-            className="w-full border-0"
-            style={{ height: isFullscreen ? "calc(100vh - 40px)" : "75vh" }}
-          />
-          <div className="flex items-center justify-center gap-3 border-t border-border bg-muted/40 px-3 py-1.5">
-            <span className="text-xs text-muted-foreground">
-              Không xem được?
-            </span>
-            {downloadUrl && (
-              <a
-                href={downloadUrl}
-                download
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-              >
-                <Download className="size-3" />
-                Tải về
-              </a>
-            )}
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => setShowFallback(true)}
-            >
-              <RefreshCw className="size-3" />
-              Xem bản fallback
-            </button>
-          </div>
-        </>
+        <iframe
+          ref={iframeRef}
+          src={src}
+          title="PDF Viewer"
+          className="w-full border-0"
+          style={{ height: isFullscreen ? "calc(100vh - 40px)" : "75vh" }}
+          onLoad={handleLoad}
+        />
       )}
     </div>
   );
