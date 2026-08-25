@@ -141,6 +141,7 @@ export function DriveExplorer({
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [osDragging, setOsDragging] = useState(false);
+  const [navigating, setNavigating] = useState(false);
 
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const queueRef = useRef(queue);
@@ -689,12 +690,18 @@ export function DriveExplorer({
         } ${isDropping ? "ring-2 ring-primary" : ""}`}
         onClick={() => {
           if (kind === "folder") navigate(id);
-          else router.push(`/tai-lieu/${id}`);
+          else {
+            setNavigating(true);
+            router.push(`/tai-lieu/${id}`);
+          }
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             if (kind === "folder") navigate(id);
-            else router.push(`/tai-lieu/${id}`);
+            else {
+              setNavigating(true);
+              router.push(`/tai-lieu/${id}`);
+            }
           }
         }}
         onContextMenu={(event) => openCtx(event, kind, id)}
@@ -1101,6 +1108,15 @@ export function DriveExplorer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {navigating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card/90 px-8 py-6 shadow-lg">
+            <Loader2 className="size-8 animate-spin text-primary" />
+            <span className="text-sm font-medium text-muted-foreground">Đang mở…</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
