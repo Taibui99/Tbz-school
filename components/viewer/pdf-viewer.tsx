@@ -45,7 +45,7 @@ export function PdfViewer({
   useEffect(() => {
     timerRef.current = setTimeout(() => {
       setLoadFailed(true);
-    }, 15000);
+    }, 5000);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
